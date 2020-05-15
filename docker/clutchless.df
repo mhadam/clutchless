@@ -1,0 +1,42 @@
+FROM debian:bullseye-slim
+
+# Install required packages:
+RUN apt-get update && apt-get install -y \
+  transmission-daemon python3.8 python3-pip
+
+# Install clutchless
+ENV YOUR_ENV=${YOUR_ENV} \
+  PYTHONFAULTHANDLER=1 \
+  PYTHONUNBUFFERED=1 \
+  PYTHONHASHSEED=random \
+  PIP_NO_CACHE_DIR=off \
+  PIP_DISABLE_PIP_VERSION_CHECK=on \
+  PIP_DEFAULT_TIMEOUT=100 \
+  POETRY_VERSION=1.0.2
+
+# System deps:
+RUN pip3 install "poetry==$POETRY_VERSION"
+
+WORKDIR /code
+COPY README.rst poetry.lock pyproject.toml /code/
+COPY docker/resources/client_setup.py /code/
+COPY clutchless/ /code/clutchless/
+
+# Project initialization:
+RUN poetry config virtualenvs.create false \
+&& poetry install --no-interaction --no-ansi
+
+# Install Transmission
+ARG APPROOT=/app
+ENV APPROOT $APPROOT
+
+WORKDIR $APPROOT
+COPY ./docker/settings.json $APPROOT/transmission_config/
+COPY ./docker/resources $APPROOT/resources
+RUN rm /etc/transmission-daemon/settings.json
+# exposes RPC port
+EXPOSE 9091
+# 51413/tcp 51413/udp
+COPY ./docker/start-script.sh $APPROOT
+RUN chmod +x $APPROOT/start-script.sh
+ENTRYPOINT (nohup $APPROOT/start-script.sh &>/dev/null &) ; /bin/bash
