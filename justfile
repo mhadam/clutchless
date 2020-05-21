@@ -6,7 +6,7 @@ clean-docker:
 	docker rm $(docker ps -a -q)
 
 install:
-	poetry build && pip install --force-reinstall dist/clutchless-0.1.0.dev0-py3-none-any.whl
+	poetry install
 
 image:
 	docker build -f docker/clutchless.df -t clutchless .
