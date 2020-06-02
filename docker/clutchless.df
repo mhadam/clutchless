@@ -25,18 +25,3 @@ COPY clutchless/ /code/clutchless/
 # Project initialization:
 RUN poetry config virtualenvs.create false \
 && poetry install --no-interaction --no-ansi
-
-# Install Transmission
-ARG APPROOT=/app
-ENV APPROOT $APPROOT
-
-WORKDIR $APPROOT
-COPY ./docker/settings.json $APPROOT/transmission_config/
-COPY ./docker/resources $APPROOT/resources
-RUN rm /etc/transmission-daemon/settings.json
-# exposes RPC port
-EXPOSE 9091
-# 51413/tcp 51413/udp
-COPY ./docker/start-script.sh $APPROOT
-RUN chmod +x $APPROOT/start-script.sh
-ENTRYPOINT (nohup $APPROOT/start-script.sh &>/dev/null &) ; /bin/bash

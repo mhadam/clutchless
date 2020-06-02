@@ -44,8 +44,7 @@ def print_missed(torrent: Torrent, reason: str):
 def print_added(torrent: Torrent, path: Path = None):
     if path:
         print(
-            Fore.GREEN
-            + f"\N{check mark} {torrent.name} at {path.resolve(strict=True)}"
+            Fore.GREEN + f"\N{check mark} {torrent.name} at {path.resolve(strict=True)}"
         )
     else:
         print(Fore.GREEN + f"\N{check mark} {torrent.name}")
@@ -53,8 +52,6 @@ def print_added(torrent: Torrent, path: Path = None):
 
 def print_duplicate(torrent: Torrent, path: Path = None):
     if path:
-        print(
-            Fore.RED + f"\N{ballot x} {torrent.name} at {path.resolve(strict=True)}"
-        )
+        print(Fore.RED + f"\N{ballot x} {torrent.name} at {path.resolve(strict=True)}")
     else:
         print(Fore.RED + f"\N{ballot x} {torrent.name}")

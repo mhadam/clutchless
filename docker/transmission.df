@@ -1,0 +1,19 @@
+FROM archlinux:latest
+RUN pacman -Syu --noconfirm
+
+ARG APPROOT=/app
+ENV APPROOT $APPROOT
+
+# Install transmission:
+RUN pacman -S --noconfirm transmission-cli
+
+# Install Transmission
+ARG APPROOT=/app
+ENV APPROOT $APPROOT
+
+WORKDIR $APPROOT
+COPY ./docker/settings.json $APPROOT/transmission_config/
+# exposes RPC port
+EXPOSE 9091
+# 51413/tcp 51413/udp
+CMD transmission-daemon --log-debug -f -w $APPROOT -g $APPROOT/transmission_config

@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, MutableMapping, Set, Optional
 
-from clutch import Client
 from clutch.network.rpc.message import Response
 from clutch.schema.user.method.torrent.add import TorrentAddArguments
 from clutch.schema.user.response.torrent.add import (
@@ -11,6 +10,7 @@ from clutch.schema.user.response.torrent.add import (
 )
 from torrentool.torrent import Torrent
 
+from clutchless.client import client
 from clutchless.search import TorrentSearch, find
 
 
@@ -50,7 +50,6 @@ def add(torrent_search: TorrentSearch, data_dirs: Set[Path], force: bool) -> Add
 
 
 def add_torrent(torrent: Path, download_dir: Path = None) -> Response[TorrentAdd]:
-    client = Client()
     arguments: TorrentAddArguments = {
         "filename": str(torrent.resolve(strict=True)),
         "paused": True,

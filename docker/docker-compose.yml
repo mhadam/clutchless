@@ -1,13 +1,17 @@
 version: '3'
+volumes:
+  torrent-data:
 services:
   transmission:
+    volumes:
+      - torrent-data:${DATA_MOUNT_PATH}
     build:
       context: ..
       dockerfile: docker/transmission.df
   testbed:
+    volumes:
+      - torrent-data:${DATA_MOUNT_PATH}
     build:
-      args:
-        YOUR_ENV: dev
       context: ..
       dockerfile: docker/clutchless.df
     depends_on:

@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from shutil import copy
 
-from clutch import Client
 from clutch.network.rpc.message import Request
 from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
+
+from clutchless.client import client
 
 
 @dataclass
@@ -14,7 +15,6 @@ class ArchiveCount:
 
 
 def archive(destination: Path) -> ArchiveCount:
-    client = Client()
     response: Request[TorrentAccessorResponse] = client.torrent.accessor(
         fields=["torrent_file"]
     )

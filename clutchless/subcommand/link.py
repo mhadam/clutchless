@@ -1,16 +1,15 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Sequence, Mapping, MutableSequence
+from typing import Set, Sequence, Mapping, MutableSequence, Optional
 
-from clutch import Client
 from clutch.schema.user.method.torrent.action import TorrentActionMethod
 from torrentool.torrent import Torrent
 
+from clutchless.client import client
 from clutchless.search import TorrentSearch, find
 
 
 def get_incompletes() -> Sequence[Mapping]:
-    client = Client()
     response: Mapping = client.torrent.accessor(
         fields=["id", "name", "percent_done", "torrent_file"]
     ).dict(exclude_none=True)
@@ -27,7 +26,7 @@ def get_incompletes() -> Sequence[Mapping]:
 @dataclass
 class LinkFailure:
     name: str
-    result: str = None
+    result: Optional[str] = None
     matched: bool = True
 
 
@@ -53,7 +52,6 @@ def link(data_dirs: Set[Path]) -> LinkResult:
     if len(incomplete_responses) == 0:
         return LinkResult(no_incompletes=True)
 
-    client = Client()
     search = TorrentSearch()
     search += [Path(torrent["torrent_file"]) for torrent in incomplete_responses]
     matches: Mapping[Torrent, Path] = find(search, data_dirs)

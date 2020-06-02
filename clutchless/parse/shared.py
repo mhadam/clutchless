@@ -28,9 +28,9 @@ def parse_data_dirs(dirs: Sequence[str]) -> Set[Path]:
     data_dirs = set()
     for path in data_paths:
         if not path.exists():
-            raise ValueError("Supplied data path doesn't exist")
+            raise ValueError("Supplied data path doesn't exist.")
         elif path.is_dir():
             data_dirs.add(path)
         else:
-            raise ValueError("Invalid")
+            raise ValueError("Invalid.")
     return data_dirs

@@ -1,8 +1,6 @@
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, PropertyMock
 
-from clutchless.search import parse_directories, match
-
 
 def test_parse_directories():
     path = 'dir1/dir2/file.mkv'

@@ -27,7 +27,7 @@ class FindArgs:
 
 def parse_find(args: Mapping) -> FindArgs:
     torrent_files = parse_torrent_files(args["<torrents>"])
-    data_dirs = parse_data_dirs(args['-d'])
+    data_dirs = parse_data_dirs(args["-d"])
 
     torrent_search = TorrentSearch()
     torrent_search += torrent_files

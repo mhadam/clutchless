@@ -1,12 +1,58 @@
 import os
+from asyncio import Queue
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import Set, Dict, Mapping, MutableMapping
+from typing import Set, Mapping, MutableMapping, MutableSet, Sequence
 
+from clutch.network.rpc.message import Request
+from clutch.schema.user.response.torrent.accessor import (
+    TorrentAccessorResponse,
+    TorrentAccessorObject,
+)
 from torrentool.torrent import Torrent
 
+from clutchless.client import client
 from clutchless.verify import calculate_hash
+
+
+@dataclass
+class WantedFile:
+    name: str
+    wanted: bool
+
+
+@dataclass
+class PartialTorrents:
+    # hash_string, name
+    hashes: MutableMapping[str, str] = field(default_factory=dict)
+    # maps hash to wanted/files sequence
+    responses: MutableMapping[str, Sequence[WantedFile]] = field(default_factory=dict)
+
+    def __post_init__(self):
+        response: Request[TorrentAccessorResponse] = client.torrent.accessor(
+            fields=["files", "wanted", "hash_string"]
+        )
+        torrents: Sequence[TorrentAccessorObject] = response.arguments.torrents
+        for torrent in torrents:
+            self.hashes[torrent.name] = torrent.hash_string
+            wanted_files = []
+            for (file, wanted) in zip(torrent.files, torrent.wanted):
+                wanted_files.append(WantedFile(file.name, wanted))
+            self.responses[torrent.hash_string] = wanted_files
+
+    def verify(self, torrent: Torrent, location: Path) -> bool:
+        try:
+            if self.hashes[torrent.info_hash] == torrent.name:
+                for file in self.responses[torrent.info_hash]:
+                    if file.wanted and not Path(location, file.name).exists():
+                        return False
+        except KeyError:
+            return False
+        return True
+
+
+# partial_torrents: PartialTorrents = PartialTorrents()
 
 
 class PathType(Enum):
@@ -22,10 +68,10 @@ class SearchItem:
 
 @dataclass
 class TorrentSearch:
-    file: Dict[str, Set[Torrent]] = field(default_factory=dict)
-    folder: Dict[str, Set[Torrent]] = field(default_factory=dict)
-    torrents: Dict[Torrent, Path] = field(default_factory=dict)
-    torrent_hashes: Set[Torrent] = field(default_factory=set)
+    file: MutableMapping[str, Set[Torrent]] = field(default_factory=dict)
+    folder: MutableMapping[str, Set[Torrent]] = field(default_factory=dict)
+    torrents: MutableMapping[Torrent, Path] = field(default_factory=dict)
+    torrent_hashes: MutableSet[Torrent] = field(default_factory=set)
 
     def __iadd__(self, other):
         if isinstance(other, Path):
@@ -79,6 +125,7 @@ def find(torrents: TorrentSearch, data_dirs: Set[Path]) -> Mapping[Torrent, Path
 
 def find_matches(torrents: TorrentSearch, directory: Path) -> Mapping[Torrent, Path]:
     found: MutableMapping[Torrent, Path] = {}
+    queue: Queue = Queue(maxsize=10)
     for path, directories, files in os.walk(directory):
         for directory in directories:
             try:
@@ -104,6 +151,8 @@ def verify(torrent: Torrent, path: Path) -> bool:
         return hash_string == pieces
     except KeyError:
         return False
+    except FileNotFoundError:
+        return PartialTorrents().verify(torrent, path)
 
 
 def is_file_torrent(torrent: Torrent) -> bool:

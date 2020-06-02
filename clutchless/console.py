@@ -4,6 +4,7 @@ Usage:
     clutchless [options] <command> [<args> ...]
 
 Options:
+    -a <address>, --address <address>   Address for Transmission (default is http://localhost:9091/transmission/rpc).
     -h, --help  Show this screen.
     --version   Show version.
 
@@ -24,6 +25,7 @@ from typing import Set, KeysView, Sequence, Mapping
 from docopt import docopt
 from torrentool.torrent import Torrent
 
+from clutchless.client import client
 from clutchless.message.add import print_add
 from clutchless.message.archive import print_archive_count
 from clutchless.message.find import print_find
@@ -31,6 +33,7 @@ from clutchless.message.link import print_incompletes, print_linked
 from clutchless.message.organize import print_tracker_list
 from clutchless.parse.add import parse_add
 from clutchless.parse.find import parse_find
+from clutchless.parse.organize import get_tracker_specs
 from clutchless.parse.shared import parse_data_dirs
 from clutchless.subcommand.add import AddResult, add
 from clutchless.subcommand.archive import archive
@@ -49,6 +52,9 @@ def main():
     print("argv:")
     pprint(argv)
     command = args.get("<command>")
+    address = args.get("--address")
+    # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
+    client.set_connection(address=address)
     if command == "add":
         # parse arguments
         from clutchless.parse import add as add_command
@@ -106,7 +112,19 @@ def main():
             # output message
             print_tracker_list(tracker_list)
         else:
-            pass
+            trackers_option = org_args.get("-t")
+            if trackers_option:
+                print(trackers_option)
+                try:
+                    print(get_tracker_specs(trackers_option))
+                except ValueError as e:
+                    print(e)
+                except IndexError as e:
+                    print(f"Invalid formatted tracker spec: {e}")
+                # organize()
+            else:
+                pass
+                # organize()
     elif command == "archive":
         # parse
         from clutchless.parse import archive as archive_command
