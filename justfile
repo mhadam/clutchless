@@ -23,7 +23,7 @@ compose:
 	docker-compose -f ./docker/docker-compose.yml run --rm start_dependencies
 	docker-compose -f ./docker/docker-compose.yml run --rm testbed sh -c "python3 -i client_setup.py"
 
-testbed-shell: clean-docker
+testbed-shell:
 	docker-compose -f ./docker/docker-compose.yml build testbed transmission
 	docker-compose -f ./docker/docker-compose.yml up -d transmission
 	docker-compose -f ./docker/docker-compose.yml run --rm start_dependencies

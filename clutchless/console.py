@@ -22,6 +22,8 @@ from pathlib import Path
 from pprint import pprint
 from typing import Set, KeysView, Sequence, Mapping
 
+from clutch.network.rpc.message import Response
+from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
 from docopt import docopt
 from torrentool.torrent import Torrent
 
@@ -33,13 +35,13 @@ from clutchless.message.link import print_incompletes, print_linked
 from clutchless.message.organize import print_tracker_list
 from clutchless.parse.add import parse_add
 from clutchless.parse.find import parse_find
-from clutchless.parse.organize import get_tracker_specs
+from clutchless.parse.organize import get_tracker_specs, SpecError
 from clutchless.parse.shared import parse_data_dirs
 from clutchless.subcommand.add import AddResult, add
 from clutchless.subcommand.archive import archive
 from clutchless.subcommand.find import find
 from clutchless.subcommand.link import link, get_incompletes, LinkResult
-from clutchless.subcommand.organize import get_ordered_tracker_list
+from clutchless.subcommand.organize import get_ordered_tracker_list, get_tracker_folder_map, get_overrides, move_torrent
 
 
 def main():
@@ -54,7 +56,8 @@ def main():
     command = args.get("<command>")
     address = args.get("--address")
     # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
-    client.set_connection(address=address)
+    if address:
+        client.set_connection(address=address)
     if command == "add":
         # parse arguments
         from clutchless.parse import add as add_command
@@ -114,17 +117,36 @@ def main():
         else:
             trackers_option = org_args.get("-t")
             if trackers_option:
-                print(trackers_option)
                 try:
-                    print(get_tracker_specs(trackers_option))
-                except ValueError as e:
-                    print(e)
-                except IndexError as e:
+                    tracker_specs = get_tracker_specs(trackers_option)
+                except SpecError as e:
                     print(f"Invalid formatted tracker spec: {e}")
-                # organize()
+                    return
+                overrides = get_overrides(tracker_specs)
+                tracker_folder_map = get_tracker_folder_map(overrides)
             else:
-                pass
-                # organize()
+                tracker_folder_map = get_tracker_folder_map()
+
+            response: Response[TorrentAccessorResponse] = client.torrent.accessor(
+                fields=["id", "trackers", "name", "download_dir"]
+            )
+            # clutchless --address http://transmission:9091/transmission/rpc organize --list
+            # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
+            # clutchless --address http://transmission:9091/transmission/rpc organize /app/resources/new -t "0=Testing"
+            org_location = org_args.get('<location>')
+            for torrent in response.arguments.torrents:
+                # organize the torrent when any tracker is found to be mapped to
+                found_folder = next((tracker_folder_map.get(tracker.announce) for tracker in torrent.trackers), None)
+                if found_folder is None:
+                    found_folder = org_args.get('-d')
+                if found_folder:
+                    new_location = Path(org_location, found_folder).resolve(strict=False)
+                    if Path(torrent.download_dir) != new_location:
+                        move_torrent(torrent, new_location)
+                    else:
+                        print(f"Already same dir for id:{torrent.id} name:{torrent.name}, ignoring")
+                else:
+                    print(f"Didn't move torrent with id:{torrent.id} name:{torrent.name}")
     elif command == "archive":
         # parse
         from clutchless.parse import archive as archive_command
