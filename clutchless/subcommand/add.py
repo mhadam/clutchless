@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, field
 from pathlib import Path
 from typing import Mapping, MutableMapping, Set, Optional
 
@@ -16,37 +16,42 @@ from clutchless.search import TorrentSearch, find
 
 @dataclass
 class AddResult:
-    added_torrents: Mapping[Torrent, ResponseTorrent]
-    failed_torrents: Mapping[Torrent, str]
-    duplicated_torrents: Mapping[Torrent, ResponseTorrent]
+    added_torrents: Mapping[Torrent, str]  # Torrent:rpc_name
     matches: Mapping[Torrent, Path]
+    failed_torrents: Optional[Mapping[Torrent, str]] = field(default_factory=dict)
+    duplicated_torrents: Optional[Mapping[Torrent, str]] = field(default_factory=dict)
 
 
-def add(torrent_search: TorrentSearch, data_dirs: Set[Path], force: bool) -> AddResult:
-    added_torrents: MutableMapping[Torrent, ResponseTorrent] = {}
-    duplicated_torrents: MutableMapping[Torrent, ResponseTorrent] = {}
+def add(torrent_search: TorrentSearch, data_dirs: Set[Path], force: bool, dry_run: bool) -> AddResult:
+    added_torrents: MutableMapping[Torrent, str] = {}
+    duplicated_torrents: MutableMapping[Torrent, str] = {}
     failed_torrents: MutableMapping[Torrent, str] = {}
 
     matches: Mapping[Torrent, Path] = find(torrent_search, data_dirs)
     unmatched: Set[Torrent] = torrent_search.torrents.keys() - matches.keys()
     to_add: MutableMapping[Torrent, Optional[Path]] = dict(matches)
     if force:
+        # add the unmatched - without a download_dir - it'll be default
         to_add.update({key: None for key in unmatched})
+    if dry_run:
+        fake_added = {torrent: torrent.name for (torrent, path) in to_add.items()}
+        add_result = AddResult(added_torrents=fake_added, matches=matches)
+        return add_result
     for (torrent, download_dir) in to_add.items():
         response = add_torrent(torrent_search.torrents[torrent], download_dir)
         torrent_added: ResponseTorrent = response.arguments.torrent_added
         torrent_duplicated: ResponseTorrent = response.arguments.torrent_duplicate
         if response.result == "success":
             if torrent_added is not None and len(torrent_added.dict().items()) > 0:
-                added_torrents[torrent] = torrent_added
+                added_torrents[torrent] = torrent_added.name
             elif (
                 torrent_duplicated is not None
                 and len(torrent_duplicated.dict().items()) > 0
             ):
-                duplicated_torrents[torrent] = torrent_duplicated
+                duplicated_torrents[torrent] = torrent_duplicated.name
         else:
             failed_torrents[torrent] = response.result
-    return AddResult(added_torrents, failed_torrents, duplicated_torrents, matches)
+    return AddResult(added_torrents=added_torrents, failed_torrents=failed_torrents, duplicated_torrents=duplicated_torrents, matches=matches)
 
 
 def add_torrent(torrent: Path, download_dir: Path = None) -> Response[TorrentAdd]:

@@ -6,17 +6,19 @@ from torrentool.torrent import Torrent
 from clutchless.subcommand.add import AddResult
 
 
-def print_add(add_result: AddResult):
+def print_add(add_result: AddResult, dry_run: bool = False):
     init()
+    if dry_run:
+        print(f"These are dry-run results.")
     added_count = len(add_result.added_torrents)
     if added_count > 0:
         print(Fore.LIGHTWHITE_EX + f"Added {added_count} torrents:")
-        for (torrent, _) in add_result.added_torrents.items():
+        for (torrent, name) in add_result.added_torrents.items():
             try:
                 path: Path = add_result.matches[torrent]
-                print_added(torrent, path)
+                print_added(name, path)
             except KeyError:
-                print_added(torrent)
+                print_added(name)
     duplicated_count = len(add_result.duplicated_torrents)
     if duplicated_count > 0:
         print(
@@ -34,6 +36,8 @@ def print_add(add_result: AddResult):
         print(Fore.LIGHTWHITE_EX + f"Cannot locate {failed_count} torrents:")
         for (torrent, failure_reason) in add_result.failed_torrents.items():
             print_missed(torrent, failure_reason)
+    if added_count + duplicated_count + failed_count == 0:
+        print("Nothing found to add.")
     deinit()
 
 
@@ -41,13 +45,13 @@ def print_missed(torrent: Torrent, reason: str):
     print(Fore.RED + f"\N{ballot x} {torrent.name} because: {reason}")
 
 
-def print_added(torrent: Torrent, path: Path = None):
+def print_added(name: str, path: Path = None):
     if path:
         print(
-            Fore.GREEN + f"\N{check mark} {torrent.name} at {path.resolve(strict=True)}"
+            Fore.GREEN + f"\N{check mark} {name} at {path.resolve(strict=True)}"
         )
     else:
-        print(Fore.GREEN + f"\N{check mark} {torrent.name}")
+        print(Fore.GREEN + f"\N{check mark} {name}")
 
 
 def print_duplicate(torrent: Torrent, path: Path = None):

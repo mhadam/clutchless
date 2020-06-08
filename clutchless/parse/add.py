@@ -9,6 +9,7 @@ Arguments:
 Options:
     -d <data> ...   Data to associate to torrents.
     -f, --force     Add torrents even when they're not found.
+    --dry-run       Output what would be done instead of modifying anything.
 """
 
 from dataclasses import dataclass

@@ -68,9 +68,10 @@ def main():
         torrent_search, data_dirs = add_args.torrent_search, add_args.data_dirs
         # action
         force = args.get("--force") or len(args.get("-d")) == 0
-        add_result: AddResult = add(torrent_search, data_dirs, force)
+        dry_run = args.get("--dry-run")
+        add_result: AddResult = add(torrent_search, data_dirs, force, dry_run)
         # output message
-        print_add(add_result)
+        print_add(add_result, dry_run)
     elif command == "link":
         # parse
         from clutchless.parse import link as link_command
