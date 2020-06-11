@@ -51,3 +51,22 @@ The ``-h`` flag can be used to bring up documentation, e.g. ``clutchless -h``::
         organize    Migrate torrents to a new location, sorting them into separate folders for each tracker.
 
     See 'clutchless help <command>' for more information on a specific command.
+
+Examples
+********
+
+To copy all the ``.torrent`` files in Transmission to ``~/torrent_archive``::
+
+    clutchless archive ~/torrent_archive
+
+
+To add some torrents to Transmission, searching ``~/torrent_archive`` for ``.torrent`` files and finding data in
+``~/torrent_data``::
+
+    clutchless add ~/torrent_archive -d ~/torrent_data
+
+
+To organize torrents into folders under ``~/new_place`` and named by tracker, with ``default_folder`` for ones missing
+a folder name for one reason or another::
+
+    clutchless organize ~/new_place -d default_folder

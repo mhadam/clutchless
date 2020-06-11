@@ -33,6 +33,7 @@ from clutchless.message.archive import print_archive_count
 from clutchless.message.find import print_find
 from clutchless.message.link import print_incompletes, print_linked
 from clutchless.message.organize import print_tracker_list
+from clutchless.message.prune import print_pruned
 from clutchless.parse.add import parse_add
 from clutchless.parse.find import parse_find
 from clutchless.parse.organize import get_tracker_specs, SpecError
@@ -41,7 +42,13 @@ from clutchless.subcommand.add import AddResult, add
 from clutchless.subcommand.archive import archive
 from clutchless.subcommand.find import find
 from clutchless.subcommand.link import link, get_incompletes, LinkResult
-from clutchless.subcommand.organize import get_ordered_tracker_list, get_tracker_folder_map, get_overrides, move_torrent
+from clutchless.subcommand.organize import (
+    get_ordered_tracker_list,
+    get_tracker_folder_map,
+    get_overrides,
+    move_torrent,
+)
+from clutchless.subcommand.prune import prune, PrunedResult
 
 
 def main():
@@ -83,8 +90,11 @@ def main():
             return
         print("link args")
         print(link_args)
+        dry_run = link_args.get("--dry-run")
+        if dry_run:
+            print("These are dry-run results.")
         data_dirs: Set[Path] = parse_data_dirs(link_args.get("<data>"))
-        result: LinkResult = link(data_dirs)
+        result: LinkResult = link(data_dirs, dry_run)
         print_linked(result)
     elif command == "find":
         try:
@@ -134,20 +144,32 @@ def main():
             # clutchless --address http://transmission:9091/transmission/rpc organize --list
             # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
             # clutchless --address http://transmission:9091/transmission/rpc organize /app/resources/new -t "0=Testing"
-            org_location = org_args.get('<location>')
+            org_location = org_args.get("<location>")
             for torrent in response.arguments.torrents:
                 # organize the torrent when any tracker is found to be mapped to
-                found_folder = next((tracker_folder_map.get(tracker.announce) for tracker in torrent.trackers), None)
+                found_folder = next(
+                    (
+                        tracker_folder_map.get(tracker.announce)
+                        for tracker in torrent.trackers
+                    ),
+                    None,
+                )
                 if found_folder is None:
-                    found_folder = org_args.get('-d')
+                    found_folder = org_args.get("-d")
                 if found_folder:
-                    new_location = Path(org_location, found_folder).resolve(strict=False)
+                    new_location = Path(org_location, found_folder).resolve(
+                        strict=False
+                    )
                     if Path(torrent.download_dir) != new_location:
                         move_torrent(torrent, new_location)
                     else:
-                        print(f"Already same dir for id:{torrent.id} name:{torrent.name}, ignoring")
+                        print(
+                            f"Already same dir for id:{torrent.id} name:{torrent.name}, ignoring"
+                        )
                 else:
-                    print(f"Didn't move torrent with id:{torrent.id} name:{torrent.name}")
+                    print(
+                        f"Didn't move torrent with id:{torrent.id} name:{torrent.name}"
+                    )
     elif command == "archive":
         # parse
         from clutchless.parse import archive as archive_command
@@ -159,3 +181,10 @@ def main():
             count = archive(Path(location))
             # output message
             print_archive_count(count, location)
+    elif command == "prune":
+        from clutchless.parse import prune as prune_command
+
+        prune_args = docopt(doc=prune_command.__doc__, argv=argv)
+        dry_run: bool = prune_args.get("--dry-run")
+        result: PrunedResult = prune(dry_run)
+        print_pruned(result, dry_run)

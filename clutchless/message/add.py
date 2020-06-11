@@ -47,9 +47,7 @@ def print_missed(torrent: Torrent, reason: str):
 
 def print_added(name: str, path: Path = None):
     if path:
-        print(
-            Fore.GREEN + f"\N{check mark} {name} at {path.resolve(strict=True)}"
-        )
+        print(Fore.GREEN + f"\N{check mark} {name} at {path.resolve(strict=True)}")
     else:
         print(Fore.GREEN + f"\N{check mark} {name}")
 

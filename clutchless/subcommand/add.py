@@ -22,7 +22,9 @@ class AddResult:
     duplicated_torrents: Optional[Mapping[Torrent, str]] = field(default_factory=dict)
 
 
-def add(torrent_search: TorrentSearch, data_dirs: Set[Path], force: bool, dry_run: bool) -> AddResult:
+def add(
+    torrent_search: TorrentSearch, data_dirs: Set[Path], force: bool, dry_run: bool
+) -> AddResult:
     added_torrents: MutableMapping[Torrent, str] = {}
     duplicated_torrents: MutableMapping[Torrent, str] = {}
     failed_torrents: MutableMapping[Torrent, str] = {}
@@ -51,7 +53,12 @@ def add(torrent_search: TorrentSearch, data_dirs: Set[Path], force: bool, dry_ru
                 duplicated_torrents[torrent] = torrent_duplicated.name
         else:
             failed_torrents[torrent] = response.result
-    return AddResult(added_torrents=added_torrents, failed_torrents=failed_torrents, duplicated_torrents=duplicated_torrents, matches=matches)
+    return AddResult(
+        added_torrents=added_torrents,
+        failed_torrents=failed_torrents,
+        duplicated_torrents=duplicated_torrents,
+        matches=matches,
+    )
 
 
 def add_torrent(torrent: Path, download_dir: Path = None) -> Response[TorrentAdd]:

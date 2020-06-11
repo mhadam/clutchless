@@ -7,7 +7,8 @@ from urllib.parse import urlparse
 from clutch.network.rpc.message import Request, Response
 from clutch.schema.user.response.torrent.accessor import (
     TorrentAccessorResponse,
-    TorrentAccessorObject, Tracker,
+    TorrentAccessorObject,
+    Tracker,
 )
 
 from clutchless.client import client
@@ -49,9 +50,7 @@ def format_hostname(tracker: Tracker) -> str:
     split_hostname = hostname.split(".")
     if len(split_hostname) > 2:
         split_hostname = hostname.split(".")[1:]
-    return "".join(
-        [word.capitalize() for word in split_hostname]
-    )
+    return "".join([word.capitalize() for word in split_hostname])
 
 
 def get_ordered_tracker_list() -> Sequence[OrganizeTracker]:
@@ -83,7 +82,9 @@ def get_tracker_folder_map(overrides: Mapping[str, str] = None) -> Mapping[str, 
             override = overrides.get(tracker.announce)
             if cached is not None:
                 if cached != hostname and cached != override:
-                    raise ValueError("duplicate tracker announce url making tracker->hostname map")
+                    raise ValueError(
+                        "duplicate tracker announce url making tracker->hostname map"
+                    )
             else:
                 if override is not None:
                     trackers[tracker.announce] = override
@@ -105,8 +106,12 @@ def get_overrides(tracker_specs: Mapping[int, str]) -> Mapping[str, str]:
 
 def move_torrent(torrent: TorrentAccessorObject, new_location: Path):
     # print(torrent.name, new_location.resolve(strict=False), torrent.download_dir)
-    response: Response = client.torrent.move(ids=[torrent.id], location=str(new_location), move=True)
-    if response.result == 'success':
+    response: Response = client.torrent.move(
+        ids=[torrent.id], location=str(new_location), move=True
+    )
+    if response.result == "success":
         print(f"Succeeded moving torrent id:{torrent.id} to: {str(new_location)}")
     else:
-        print(f"Failed moving torrent id:{torrent.id} to:{str(new_location)} error:{response.result}")
+        print(
+            f"Failed moving torrent id:{torrent.id} to:{str(new_location)} error:{response.result}"
+        )

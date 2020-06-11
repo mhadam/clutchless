@@ -43,7 +43,7 @@ class LinkResult:
     no_incompletes: bool = False
 
 
-def link(data_dirs: Set[Path]) -> LinkResult:
+def link(data_dirs: Set[Path], dry_run: bool) -> LinkResult:
     incomplete_responses = get_incompletes()
     responses: Mapping[str, Mapping] = {
         Torrent.from_file(torrent["torrent_file"]).info_hash: torrent
@@ -69,18 +69,21 @@ def link(data_dirs: Set[Path]) -> LinkResult:
     failures.extend([LinkFailure(name, matched=False) for name in unmatched_names])
     for (torrent, path) in matches.items():
         torrent_response = responses[torrent.info_hash]
-        move_response = client.torrent.move(
-            ids=torrent_response["id"], location=str(path.resolve(strict=True))
-        )
-        if move_response.result != "success":
-            failures.append(LinkFailure(torrent.name, move_response.result))
-            continue
-        verify_response = client.torrent.action(
-            ids=torrent_response["id"], method=TorrentActionMethod.VERIFY
-        )
-        if verify_response.result != "success":
-            failures.append(LinkFailure(torrent.name, verify_response.result))
-            continue
-        else:
+        if not dry_run:
             successes.append(LinkSuccess(torrent.name, path))
+        else:
+            move_response = client.torrent.move(
+                ids=torrent_response["id"], location=str(path.resolve(strict=True))
+            )
+            if move_response.result != "success":
+                failures.append(LinkFailure(torrent.name, move_response.result))
+                continue
+            verify_response = client.torrent.action(
+                ids=torrent_response["id"], method=TorrentActionMethod.VERIFY
+            )
+            if verify_response.result != "success":
+                failures.append(LinkFailure(torrent.name, verify_response.result))
+                continue
+            else:
+                successes.append(LinkSuccess(torrent.name, path))
     return LinkResult(failures, successes)
