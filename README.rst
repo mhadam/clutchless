@@ -40,6 +40,7 @@ The ``-h`` flag can be used to bring up documentation, e.g. ``clutchless -h``::
         clutchless [options] <command> [<args> ...]
 
     Options:
+        -a <address>, --address <address>   Address for Transmission (default is http://localhost:9091/transmission/rpc).
         -h, --help  Show this screen.
         --version   Show version.
 
@@ -49,6 +50,7 @@ The ``-h`` flag can be used to bring up documentation, e.g. ``clutchless -h``::
         link        For torrents with missing data in Transmission, find the data and fix the location.
         archive     Copy .torrent files from Transmission for backup.
         organize    Migrate torrents to a new location, sorting them into separate folders for each tracker.
+        prune       Remove torrents from Transmission with completely missing data.
 
     See 'clutchless help <command>' for more information on a specific command.
 
@@ -65,8 +67,21 @@ To add some torrents to Transmission, searching ``~/torrent_archive`` for ``.tor
 
     clutchless add ~/torrent_archive -d ~/torrent_data
 
+To look for matching data given a search folder (``~/torrent_data``) and a directory (``~/torrent_files``)
+that contains ``.torrent`` files::
+
+    clutchless find ~/torrent_files -d ~/torrent_data
+
 
 To organize torrents into folders under ``~/new_place`` and named by tracker, with ``default_folder`` for ones missing
 a folder name for one reason or another::
 
     clutchless organize ~/new_place -d default_folder
+
+Remove torrents that are completely missing data::
+
+    clutchless prune
+
+To associate torrent to their matching data found in any number of folders (in this case just two)::
+
+    clutchless link ~/data_folder_1 ~/data_folder_2
