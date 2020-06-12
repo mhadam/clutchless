@@ -19,7 +19,6 @@ See 'clutchless help <command>' for more information on a specific command.
 
 """
 from pathlib import Path
-from pprint import pprint
 from typing import Set, KeysView, Sequence, Mapping
 
 from clutch.network.rpc.message import Response
@@ -56,10 +55,6 @@ def main():
     # good to remember that argv is a list of arguments
     # here we join together a list of the original command & args without "top-level" options
     argv = [args["<command>"]] + args["<args>"]
-    print("args:")
-    pprint(args)
-    print("argv:")
-    pprint(argv)
     command = args.get("<command>")
     address = args.get("--address")
     # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
@@ -70,7 +65,6 @@ def main():
         from clutchless.parse import add as add_command
 
         args = docopt(doc=add_command.__doc__, argv=argv)
-        print(args)
         add_args = parse_add(args)
         torrent_search, data_dirs = add_args.torrent_search, add_args.data_dirs
         # action
@@ -88,8 +82,6 @@ def main():
             response: Sequence[Mapping] = get_incompletes()
             print_incompletes(response)
             return
-        print("link args")
-        print(link_args)
         dry_run = link_args.get("--dry-run")
         if dry_run:
             print("These are dry-run results.")
@@ -118,8 +110,6 @@ def main():
         from clutchless.parse import organize as organize_command
 
         org_args = docopt(doc=organize_command.__doc__, argv=argv)
-        print("organize args:")
-        pprint(org_args)
         # action
         if org_args.get("--list"):
             tracker_list = get_ordered_tracker_list()
