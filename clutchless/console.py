@@ -72,7 +72,10 @@ def main():
         # action
         force = args.get("--force") or len(args.get("-d")) == 0
         dry_run = args.get("--dry-run")
-        add_result: AddResult = add(torrent_search, data_dirs, force, dry_run)
+        delete_added = args.get("--delete")
+        add_result: AddResult = add(
+            torrent_search, data_dirs, force, dry_run, delete_added
+        )
         # output message
         print_add(add_result, dry_run)
     elif command == "link":

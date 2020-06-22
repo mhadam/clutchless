@@ -1,7 +1,7 @@
 """ Add torrents to Transmission (with or without data).
 
 Usage:
-    clutchless add [--dry-run] [-f | --force] <torrents> ... [-d <data> ...]
+    clutchless add [--dry-run] [--delete] [-f | --force] <torrents> ... [-d <data> ...]
 
 Arguments:
     <torrents>  Torrent files (.torrent) to add to Transmission.
@@ -9,6 +9,7 @@ Arguments:
 Options:
     -d <data> ...   Data to associate to torrents.
     -f, --force     Add torrents even when they're not found.
+    --delete        Delete successfully added torrents (meaningless when used with --dry-run).
     --dry-run       Output what would be done instead of modifying anything.
 """
 

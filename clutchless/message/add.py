@@ -36,6 +36,10 @@ def print_add(add_result: AddResult, dry_run: bool = False):
         print(Fore.LIGHTWHITE_EX + f"Cannot locate {failed_count} torrents:")
         for (torrent, failure_reason) in add_result.failed_torrents.items():
             print_missed(torrent, failure_reason)
+    if len(add_result.deleted_torrents) > 0:
+        print(Fore.LIGHTWHITE_EX + f"Deleted the following torrents:")
+        for deletion in add_result.deleted_torrents:
+            print(Fore.LIGHTWHITE_EX + f"{deletion.resolve(strict=True)}")
     if added_count + duplicated_count + failed_count == 0:
         print("Nothing found to add.")
     deinit()

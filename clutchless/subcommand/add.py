@@ -1,6 +1,7 @@
+import os
 from dataclasses import dataclass, fields, field
 from pathlib import Path
-from typing import Mapping, MutableMapping, Set, Optional
+from typing import Mapping, MutableMapping, Set, Optional, Sequence, MutableSequence
 
 from clutch.network.rpc.message import Response
 from clutch.schema.user.method.torrent.add import TorrentAddArguments
@@ -20,14 +21,20 @@ class AddResult:
     matches: Mapping[Torrent, Path]
     failed_torrents: Optional[Mapping[Torrent, str]] = field(default_factory=dict)
     duplicated_torrents: Optional[Mapping[Torrent, str]] = field(default_factory=dict)
+    deleted_torrents: Sequence[Path] = field(default_factory=list)
 
 
 def add(
-    torrent_search: TorrentSearch, data_dirs: Set[Path], force: bool, dry_run: bool
+    torrent_search: TorrentSearch,
+    data_dirs: Set[Path],
+    force: bool,
+    dry_run: bool,
+    delete_added: bool,
 ) -> AddResult:
     added_torrents: MutableMapping[Torrent, str] = {}
     duplicated_torrents: MutableMapping[Torrent, str] = {}
     failed_torrents: MutableMapping[Torrent, str] = {}
+    deleted_torrents: MutableSequence[Path] = []
 
     matches: Mapping[Torrent, Path] = find(torrent_search, data_dirs)
     unmatched: Set[Torrent] = torrent_search.torrents.keys() - matches.keys()
@@ -46,6 +53,11 @@ def add(
         if response.result == "success":
             if torrent_added is not None and len(torrent_added.dict().items()) > 0:
                 added_torrents[torrent] = torrent_added.name
+                # delete added torrent
+                if delete_added:
+                    torrent_path = torrent_search.torrents[torrent]
+                    os.remove(torrent_path)
+                    deleted_torrents.append(torrent_path)
             elif (
                 torrent_duplicated is not None
                 and len(torrent_duplicated.dict().items()) > 0
@@ -58,6 +70,7 @@ def add(
         failed_torrents=failed_torrents,
         duplicated_torrents=duplicated_torrents,
         matches=matches,
+        deleted_torrents=deleted_torrents,
     )
 
 

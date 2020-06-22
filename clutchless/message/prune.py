@@ -35,4 +35,3 @@ def print_pruned_files(files: Set[Path]):
     else:
         print("No files found to prune.")
     deinit()
-
