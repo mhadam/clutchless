@@ -21,7 +21,7 @@ class PrunedResult:
     successes: Sequence[PrunedTorrent] = field(default_factory=list)
 
 
-def prune(dry_run: bool) -> PrunedResult:
+def prune_client(dry_run: bool) -> PrunedResult:
     response: Response[TorrentAccessorResponse] = client.torrent.accessor(
         fields=["id", "error_string", "error", "name"]
     )

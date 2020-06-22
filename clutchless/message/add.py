@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from colorama import init, deinit, Fore
+from colorama import init, deinit, Fore, Style
 from torrentool.torrent import Torrent
 
 from clutchless.subcommand.add import AddResult

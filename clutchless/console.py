@@ -33,7 +33,7 @@ from clutchless.message.archive import print_archive_count
 from clutchless.message.find import print_find
 from clutchless.message.link import print_incompletes, print_linked
 from clutchless.message.organize import print_tracker_list
-from clutchless.message.prune import print_pruned
+from clutchless.message.prune import print_pruned, print_pruned_files
 from clutchless.parse.add import parse_add
 from clutchless.parse.find import parse_find
 from clutchless.parse.organize import get_tracker_specs, SpecError
@@ -48,7 +48,8 @@ from clutchless.subcommand.organize import (
     get_overrides,
     move_torrent,
 )
-from clutchless.subcommand.prune import prune, PrunedResult
+from clutchless.subcommand.prune.client import prune_client, PrunedResult
+from clutchless.subcommand.prune.folder import prune_folders
 
 
 def main():
@@ -173,9 +174,27 @@ def main():
             # output message
             print_archive_count(count, location)
     elif command == "prune":
-        from clutchless.parse import prune as prune_command
+        from clutchless.parse.prune import main as prune_command
 
-        prune_args = docopt(doc=prune_command.__doc__, argv=argv)
-        dry_run: bool = prune_args.get("--dry-run")
-        result: PrunedResult = prune(dry_run)
-        print_pruned(result, dry_run)
+        args = docopt(doc=prune_command.__doc__, options_first=True, argv=argv)
+        prune_subcommand = args.get("<command>")
+        if prune_subcommand == "folder":
+            from clutchless.parse.prune import folder as prune_folder_command
+
+            prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
+            dry_run: bool = prune_args.get("--dry-run")
+            folders: Sequence[str] = prune_args.get("<folders>")
+            pruned_folders: Set[Path] = prune_folders(folders, dry_run)
+            if dry_run:
+                print("The following are dry run results.")
+            print_pruned_files(pruned_folders)
+        elif prune_subcommand == "client":
+            from clutchless.parse.prune import client as prune_client_command
+
+            prune_args = docopt(doc=prune_client_command.__doc__, argv=argv)
+            dry_run: bool = prune_args.get("--dry-run")
+            result: PrunedResult = prune_client(dry_run)
+            print_pruned(result, dry_run)
+        else:
+            print("Invalid prune subcommand: requires <folder|client>")
+            return

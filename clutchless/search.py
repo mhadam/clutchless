@@ -71,25 +71,30 @@ class TorrentSearch:
     file: MutableMapping[str, Set[Torrent]] = field(default_factory=dict)
     folder: MutableMapping[str, Set[Torrent]] = field(default_factory=dict)
     torrents: MutableMapping[Torrent, Path] = field(default_factory=dict)
-    torrent_hashes: MutableSet[Torrent] = field(default_factory=set)
+    torrent_hashes: MutableSet[str] = field(default_factory=set)
+    locations: MutableMapping[str, Set[Path]] = field(default_factory=dict)
 
     def __iadd__(self, other):
         if isinstance(other, Path):
             torrent = Torrent.from_file(str(other))
+            self.torrent_hashes.add(torrent.info_hash)
+            try:
+                self.locations[torrent.info_hash].add(other)
+            except KeyError:
+                self.locations[torrent.info_hash] = {other}
             if torrent.info_hash in self.torrent_hashes:
                 return self
-            self.torrent_hashes.add(torrent.info_hash)
             self.torrents[torrent] = other
             name = torrent.name
             if is_file_torrent(torrent):
-                if name in self.file:
+                try:
                     self.file[name].add(torrent)
-                else:
+                except KeyError:
                     self.file[name] = {torrent}
             else:
-                if name in self.folder:
+                try:
                     self.folder[name].add(torrent)
-                else:
+                except KeyError:
                     self.folder[name] = {torrent}
         elif isinstance(other, list) or isinstance(other, set):
             for item in other:
