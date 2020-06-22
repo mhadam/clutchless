@@ -14,7 +14,7 @@ The available clutchless commands are:
     link        For torrents with missing data in Transmission, find the data and fix the location.
     archive     Copy .torrent files from Transmission for backup.
     organize    Migrate torrents to a new location, sorting them into separate folders for each tracker.
-    prune       Remove torrents from Transmission with completely missing data.
+    prune       Clean up things in different contexts (files, torrents, etc.).
 
 See 'clutchless help <command>' for more information on a specific command.
 

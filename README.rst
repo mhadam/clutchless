@@ -80,7 +80,11 @@ a folder name for one reason or another::
 
 Remove torrents that are completely missing data::
 
-    clutchless prune
+    clutchless prune client
+
+Remove ``.torrent`` files from some folders (``folder1``, ``folder2``) that are found in Transmission::
+
+    clutchless prune folder ~/folder1 ~/folder2
 
 To associate torrent to their matching data found in any number of folders (in this case just two)::
 
