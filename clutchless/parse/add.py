@@ -25,13 +25,24 @@ from clutchless.search import TorrentSearch
 class AddArgs:
     torrent_files: Set[Path]
     data_dirs: Set[Path]
-    torrent_search: TorrentSearch
 
 
-def parse_add(args: Mapping) -> AddArgs:
+@dataclass
+class AddFlags:
+    force: bool
+    dry_run: bool
+    delete_added: bool
+
+
+def parse_add_flags(args: Mapping) -> AddFlags:
+    return AddFlags(
+        force=args.get("--force") or len(args.get("<data>")) == 0,
+        dry_run=args.get("--dry-run"),
+        delete_added=args.get("--delete"),
+    )
+
+
+def parse_add_arguments(args: Mapping) -> AddArgs:
     torrent_files = parse_torrent_files(args["<torrents>"])
     data_dirs = parse_data_dirs(args.get("-d"))
-
-    torrent_search = TorrentSearch()
-    torrent_search += torrent_files
-    return AddArgs(torrent_files, data_dirs, torrent_search)
+    return AddArgs(torrent_files, data_dirs)

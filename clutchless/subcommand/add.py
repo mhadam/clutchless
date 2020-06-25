@@ -12,6 +12,7 @@ from clutch.schema.user.response.torrent.add import (
 from torrentool.torrent import Torrent
 
 from clutchless.client import client
+from clutchless.parse.add import AddArgs, AddFlags
 from clutchless.search import TorrentSearch, find
 
 
@@ -24,25 +25,20 @@ class AddResult:
     deleted_torrents: Sequence[Path] = field(default_factory=list)
 
 
-def add(
-    torrent_search: TorrentSearch,
-    data_dirs: Set[Path],
-    force: bool,
-    dry_run: bool,
-    delete_added: bool,
-) -> AddResult:
+def add(torrent_search: TorrentSearch, args: AddArgs, flags: AddFlags) -> AddResult:
+
     added_torrents: MutableMapping[Torrent, str] = {}
     duplicated_torrents: MutableMapping[Torrent, str] = {}
     failed_torrents: MutableMapping[Torrent, str] = {}
     deleted_torrents: MutableSequence[Path] = []
 
-    matches: Mapping[Torrent, Path] = find(torrent_search, data_dirs)
+    matches: Mapping[Torrent, Path] = find(torrent_search, args.data_dirs)
     unmatched: Set[Torrent] = torrent_search.torrents.keys() - matches.keys()
     to_add: MutableMapping[Torrent, Optional[Path]] = dict(matches)
-    if force:
+    if flags.force:
         # add the unmatched - without a download_dir - it'll be default
         to_add.update({key: None for key in unmatched})
-    if dry_run:
+    if flags.dry_run:
         fake_added = {torrent: torrent.name for (torrent, path) in to_add.items()}
         add_result = AddResult(added_torrents=fake_added, matches=matches)
         return add_result
@@ -54,7 +50,7 @@ def add(
             if torrent_added is not None and len(torrent_added.dict().items()) > 0:
                 added_torrents[torrent] = torrent_added.name
                 # delete added torrent
-                if delete_added:
+                if flags.delete_added:
                     torrent_path = torrent_search.torrents[torrent]
                     os.remove(torrent_path)
                     deleted_torrents.append(torrent_path)

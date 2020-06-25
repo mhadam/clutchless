@@ -34,10 +34,11 @@ from clutchless.message.find import print_find
 from clutchless.message.link import print_incompletes, print_linked
 from clutchless.message.organize import print_tracker_list
 from clutchless.message.prune import print_pruned, print_pruned_files
-from clutchless.parse.add import parse_add
+from clutchless.parse.add import parse_add_flags, parse_add_arguments
 from clutchless.parse.find import parse_find
 from clutchless.parse.organize import get_tracker_specs, SpecError
 from clutchless.parse.shared import parse_data_dirs
+from clutchless.search import TorrentSearch
 from clutchless.subcommand.add import AddResult, add
 from clutchless.subcommand.archive import archive
 from clutchless.subcommand.find import find
@@ -67,17 +68,15 @@ def main():
         from clutchless.parse import add as add_command
 
         args = docopt(doc=add_command.__doc__, argv=argv)
-        add_args = parse_add(args)
-        torrent_search, data_dirs = add_args.torrent_search, add_args.data_dirs
+        add_args = parse_add_arguments(args)
+        add_flags = parse_add_flags(args)
+
+        torrent_search = TorrentSearch()
+        torrent_search += add_args.torrent_files
         # action
-        force = args.get("--force") or len(args.get("-d")) == 0
-        dry_run = args.get("--dry-run")
-        delete_added = args.get("--delete")
-        add_result: AddResult = add(
-            torrent_search, data_dirs, force, dry_run, delete_added
-        )
+        add_result: AddResult = add(torrent_search, args=add_args, flags=add_flags)
         # output message
-        print_add(add_result, dry_run)
+        print_add(add_result, add_flags.dry_run)
     elif command == "link":
         # parse
         from clutchless.parse import link as link_command
