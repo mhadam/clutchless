@@ -16,7 +16,7 @@ def parse_torrent_files(paths: Sequence[str]) -> Set[Path]:
         elif path.is_file():
             torrent_files.add(path)
         else:
-            raise ValueError("Invalid ")
+            raise ValueError("Invalid torrent path")
 
     for directory in torrent_dirs:
         torrent_files.update(get_torrent_files(directory))

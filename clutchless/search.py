@@ -1,9 +1,9 @@
 import os
-from asyncio import Queue
+from collections import defaultdict, UserDict
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from functools import partial
 from pathlib import Path
-from typing import Set, Mapping, MutableMapping, MutableSet, Sequence
+from typing import Set, Mapping, MutableMapping, MutableSet, Sequence, Iterable
 
 from clutch.network.rpc.message import Request
 from clutch.schema.user.response.torrent.accessor import (
@@ -22,131 +22,137 @@ class WantedFile:
     wanted: bool
 
 
-@dataclass
 class PartialTorrents:
-    # hash_string, name
-    hashes: MutableMapping[str, str] = field(default_factory=dict)
-    # maps hash to wanted/files sequence
-    responses: MutableMapping[str, Sequence[WantedFile]] = field(default_factory=dict)
+    def __init__(self):
+        self.hashes: MutableMapping[str, str] = {}  # hash_string, name
+        self.responses: MutableMapping[
+            str, Sequence[WantedFile]
+        ] = {}  # maps hash_string to wanted/files sequence
+        request: Sequence[TorrentAccessorObject] = self.request()
+        self.process(request)
 
-    def __post_init__(self):
+    def process(self, request: Sequence[TorrentAccessorObject]):
+        for torrent in request:
+            self.hashes[torrent.name] = torrent.hash_string
+            self.responses[torrent.hash_string] = self.collect_wanted(torrent)
+
+    @staticmethod
+    def collect_wanted(torrent: TorrentAccessorObject) -> Sequence[WantedFile]:
+        wanted_files = []
+        for (file, wanted) in zip(torrent.files, torrent.wanted):
+            wanted_files.append(WantedFile(file.name, wanted))
+        return wanted_files
+
+    @staticmethod
+    def request() -> Sequence[TorrentAccessorObject]:
         response: Request[TorrentAccessorResponse] = client.torrent.accessor(
             fields=["files", "wanted", "hash_string"]
         )
-        torrents: Sequence[TorrentAccessorObject] = response.arguments.torrents
-        for torrent in torrents:
-            self.hashes[torrent.name] = torrent.hash_string
-            wanted_files = []
-            for (file, wanted) in zip(torrent.files, torrent.wanted):
-                wanted_files.append(WantedFile(file.name, wanted))
-            self.responses[torrent.hash_string] = wanted_files
+        return response.arguments.torrents
+
+    @staticmethod
+    def is_incomplete(file: WantedFile, location: Path):
+        return file.wanted and not Path(location, file.name).exists()
 
     def verify(self, torrent: Torrent, location: Path) -> bool:
         try:
             if self.hashes[torrent.info_hash] == torrent.name:
-                for file in self.responses[torrent.info_hash]:
-                    if file.wanted and not Path(location, file.name).exists():
-                        return False
-        except KeyError:
-            return False
-        return True
-
-
-# partial_torrents: PartialTorrents = PartialTorrents()
-
-
-class PathType(Enum):
-    FILE = auto()
-    DIRECTORY = auto()
-
-
-@dataclass
-class SearchItem:
-    path_type: PathType
-    value: str
-
-
-@dataclass
-class TorrentSearch:
-    file: MutableMapping[str, Set[Torrent]] = field(default_factory=dict)
-    folder: MutableMapping[str, Set[Torrent]] = field(default_factory=dict)
-    torrents: MutableMapping[Torrent, Path] = field(default_factory=dict)
-    torrent_hashes: MutableSet[str] = field(default_factory=set)
-    locations: MutableMapping[str, Set[Path]] = field(default_factory=dict)
-
-    def __iadd__(self, other):
-        if isinstance(other, Path):
-            torrent = Torrent.from_file(str(other))
-            self.torrent_hashes.add(torrent.info_hash)
-            try:
-                self.locations[torrent.info_hash].add(other)
-            except KeyError:
-                self.locations[torrent.info_hash] = {other}
-            if torrent.info_hash in self.torrent_hashes:
-                return self
-            self.torrents[torrent] = other
-            name = torrent.name
-            if is_file_torrent(torrent):
-                try:
-                    self.file[name].add(torrent)
-                except KeyError:
-                    self.file[name] = {torrent}
-            else:
-                try:
-                    self.folder[name].add(torrent)
-                except KeyError:
-                    self.folder[name] = {torrent}
-        elif isinstance(other, list) or isinstance(other, set):
-            for item in other:
-                self.__iadd__(item)
-        else:
-            raise TypeError(
-                f"Cannot assign to {type(self).__name__} with type {type(other).__name__}"
-            )
-        return self
-
-    def __contains__(self, item) -> bool:
-        try:
-            return self[item] is not None
+                is_incomplete = partial(self.is_incomplete, location=location)
+                return any(filter(is_incomplete, self.responses[torrent.info_hash]))
         except KeyError:
             return False
 
-    def __getitem__(self, item) -> Set[Torrent]:
-        if isinstance(item, SearchItem):
-            if item.path_type == PathType.FILE:
-                return self.file[item.value]
-            if item.path_type == PathType.DIRECTORY:
-                return self.folder[item.value]
+
+@dataclass
+class TorrentTuple:
+    path: Path
+    torrent: Torrent
+
+
+@dataclass
+class TorrentRegisterEntry:
+    """An entry in the TorrentRegister - stores all found copies of a .torrent file and one is selected."""
+
+    selected: TorrentTuple
+    torrents: MutableSet[TorrentTuple] = field(default_factory=set)
+
+
+class TorrentRegister(UserDict, MutableMapping[str, TorrentRegisterEntry]):
+    def get_selected(self, torrent_hash: str) -> TorrentTuple:
+        return self[torrent_hash].selected
+
+    def get_selected_paths(self, torrent_hashes: Set[str]) -> Mapping[str, Path]:
+        return {
+            torrent_hash: entry.selected.path
+            for torrent_hash, entry in self.items()
+            if torrent_hash in torrent_hashes
+        }
+
+
+class TorrentSorter:
+    """Sorts torrents as either file or folder torrents.
+
+    This is useful for searching. Name of file/folder can be used to return torrent hash.
+    """
+
+    def __init__(self, paths: Set[Path]):
+        self.file_torrents: MutableMapping[str, Set[str]] = defaultdict(
+            set
+        )  # file name -> set[torrent hash]
+        self.folder_torrents: MutableMapping[str, Set[str]] = defaultdict(
+            set
+        )  # file name -> set[torrent hash]
+        self.register: TorrentRegister = TorrentRegister()
+        self.__handle(paths)
+
+    def __handle(self, paths: Set[Path]):
+        for path in paths:
+            torrent = self.__register(path)
+            self.__sort(torrent)
+
+    def __register(self, path: Path) -> Torrent:
+        """Takes a known torrent path, and stores it for later retrieval (stored with Torrent object)."""
+        torrent = Torrent.from_file(str(path))
+        torrent_tuple = TorrentTuple(path, torrent)
+        self.register[torrent.info_hash] = TorrentRegisterEntry(
+            torrent_tuple, {torrent_tuple}
+        )
+        return torrent
+
+    def __sort(self, torrent: Torrent):
+        name = torrent.name
+        if is_file_torrent(torrent):
+            self.file_torrents[name].add(torrent.info_hash)
         else:
-            raise KeyError(f"Must access {type(self).__name__} with SearchItem")
+            self.folder_torrents[name].add(torrent.info_hash)
 
+    def find_matches(self, data_dirs: Set[Path]) -> Mapping[str, Path]:
+        matches: MutableMapping[str, Path] = {}
+        for directory in data_dirs:
+            matches.update(self.__find_matches(directory))
+        return matches
 
-def find(torrents: TorrentSearch, data_dirs: Set[Path]) -> Mapping[Torrent, Path]:
-    matches: MutableMapping[Torrent, Path] = {}
-    for directory in data_dirs:
-        matches.update(find_matches(torrents, directory))
-    return matches
+    def __find_matches(self, directory: Path) -> Mapping[str, Path]:
+        found: MutableMapping[str, Path] = {}
+        # queue: Queue = Queue(maxsize=10)
+        for path, directories, files in os.walk(directory):
+            found.update(self.__search(path, files, self.file_torrents))
+            found.update(self.__search(path, directories, self.folder_torrents))
+        return found
 
+    def __search(
+        self, path: Path, items: Iterable, torrents: MutableMapping
+    ) -> Mapping[str, Path]:
+        found: MutableMapping[str, Path] = {}
+        for item in items:
+            for torrent_hash in torrents[item]:
+                torrent = self.register[torrent_hash].selected.torrent
+                if torrent_hash not in found and verify(torrent, path):
+                    found[torrent_hash] = path
+        return found
 
-def find_matches(torrents: TorrentSearch, directory: Path) -> Mapping[Torrent, Path]:
-    found: MutableMapping[Torrent, Path] = {}
-    queue: Queue = Queue(maxsize=10)
-    for path, directories, files in os.walk(directory):
-        for directory in directories:
-            try:
-                for torrent in torrents[SearchItem(PathType.DIRECTORY, directory)]:
-                    if torrent not in found and verify(torrent, path):
-                        found[torrent] = Path(path)
-            except KeyError:
-                pass
-        for file in files:
-            try:
-                for torrent in torrents[SearchItem(PathType.FILE, file)]:
-                    if torrent not in found and verify(torrent, path):
-                        found[torrent] = Path(path)
-            except KeyError:
-                pass
-    return found
+    def identify(self, torrent_hash: str) -> TorrentRegisterEntry:
+        return self.register[torrent_hash]
 
 
 def verify(torrent: Torrent, path: Path) -> bool:

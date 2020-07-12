@@ -20,7 +20,7 @@ See 'clutchless help <command>' for more information on a specific command.
 
 """
 from pathlib import Path
-from typing import Set, KeysView, Sequence, Mapping
+from typing import Set, KeysView, Sequence, Mapping, Protocol, Any
 
 from clutch.network.rpc.message import Response
 from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
@@ -35,13 +35,12 @@ from clutchless.message.link import print_incompletes, print_linked
 from clutchless.message.organize import print_tracker_list
 from clutchless.message.prune import print_pruned, print_pruned_files
 from clutchless.parse.add import parse_add_flags, parse_add_arguments
-from clutchless.parse.find import parse_find
+from clutchless.parse.find import parse_find, FindArgs
 from clutchless.parse.organize import get_tracker_specs, SpecError
 from clutchless.parse.shared import parse_data_dirs
-from clutchless.search import TorrentSearch
-from clutchless.subcommand.add import AddResult, add
+from clutchless.subcommand.add import AddResult, AddCommand
 from clutchless.subcommand.archive import archive
-from clutchless.subcommand.find import find
+from clutchless.subcommand.find import FindCommand, FindResult
 from clutchless.subcommand.link import link, get_incompletes, LinkResult
 from clutchless.subcommand.organize import (
     get_ordered_tracker_list,
@@ -51,6 +50,20 @@ from clutchless.subcommand.organize import (
 )
 from clutchless.subcommand.prune.client import prune_client, PrunedResult
 from clutchless.subcommand.prune.folder import prune_folders
+
+
+class CommandResult(Protocol):
+    """Protocol for command result."""
+
+    def output(self):
+        raise NotImplementedError
+
+
+class Command(Protocol):
+    """Protocol for commands."""
+
+    def run(self) -> CommandResult:
+        raise NotImplementedError
 
 
 def main():
@@ -71,12 +84,10 @@ def main():
         add_args = parse_add_arguments(args)
         add_flags = parse_add_flags(args)
 
-        torrent_search = TorrentSearch()
-        torrent_search += add_args.torrent_files
         # action
-        add_result: AddResult = add(torrent_search, args=add_args, flags=add_flags)
-        # output message
-        print_add(add_result, add_flags.dry_run)
+        add_command = AddCommand(add_args, add_flags)
+        add_result: AddResult = add_command.run()
+        add_result.output()
     elif command == "link":
         # parse
         from clutchless.parse import link as link_command
@@ -97,14 +108,12 @@ def main():
             # parse arguments
             from clutchless.parse import find as find_command
 
-            find_args = parse_find(docopt(doc=find_command.__doc__, argv=argv))
-            torrent_search, data_dirs = find_args.torrent_search, find_args.data_dirs
-            # action
-            matches = find(torrent_search, data_dirs)
-            # output message
-            torrents: KeysView[Torrent] = find_args.torrent_search.torrents.keys()
-            missed: Set[Torrent] = torrents - matches.keys()
-            print_find(matches, missed)
+            find_args: FindArgs = parse_find(
+                docopt(doc=find_command.__doc__, argv=argv)
+            )
+            command = FindCommand(find_args)
+            find_result: FindResult = command.run()
+            find_result.output()
         except KeyError as e:
             print(f"failed:{e}")
         except ValueError as e:
