@@ -1,14 +1,4 @@
-from typing import Sequence, Mapping
-
 from colorama import Fore, init, deinit
-
-from clutchless.subcommand.link import LinkResult
-
-
-def print_incompletes(incompletes: Sequence[Mapping]):
-    if len(incompletes) > 0:
-        for item in incompletes:
-            print(f'{item["name"]}')
 
 
 def print_linked(result: LinkResult):

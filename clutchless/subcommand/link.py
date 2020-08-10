@@ -1,89 +1,160 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Sequence, Mapping, MutableSequence, Optional
+from typing import Set, Mapping, MutableSequence, MutableMapping, Sequence
 
-from clutch.schema.user.method.torrent.action import TorrentActionMethod
+from clutch import Client
+from clutch.network.rpc.message import Response
+from clutch.schema.user.response.torrent.accessor import (
+    TorrentAccessorObject,
+)
 from torrentool.torrent import Torrent
 
-from clutchless.client import client
-from clutchless.search import TorrentSearch, find
-
-
-def get_incompletes() -> Sequence[Mapping]:
-    response: Mapping = client.torrent.accessor(
-        fields=["id", "name", "percent_done", "torrent_file"]
-    ).dict(exclude_none=True)
-    try:
-        response_torrents: Sequence[Mapping] = response["arguments"]["torrents"]
-        incomplete_responses = [
-            torrent for torrent in response_torrents if torrent["percent_done"] == 0.0
-        ]
-        return incomplete_responses
-    except KeyError:
-        return []
+from clutchless.command import CommandResultAccumulator, CommandResult, Command
+from clutchless.search import TorrentTuple
+from clutchless.subcommand.find import TorrentFinder, SearchResult
+from clutchless.subcommand.other import ClutchLink, ClutchError, MoveTorrent, VerifyTorrent
+from clutchless.transmission import IncompleteTorrents, TransmissionApi
 
 
 @dataclass
-class LinkFailure:
+class LinkFailure(CommandResultAccumulator):
     name: str
-    result: Optional[str] = None
-    matched: bool = True
+    found_location: Path
+    result: str
+
+    def read(self, response: Response, torrent: Torrent, found_location: Path):
+        self.result = response.result
+        self.name = torrent.name
+        self.found_location = found_location
+
+    def accumulate(self, result: "LinkCommandResult"):
+        result.failed.append(self)
 
 
 @dataclass
-class LinkSuccess:
+class LinkUnmatched(CommandResultAccumulator):
     name: str
-    location: Path
+
+    def accumulate(self, result: "LinkCommandResult"):
+        result.unmatched.append(self)
 
 
 @dataclass
-class LinkResult:
-    failures: Sequence[LinkFailure] = field(default_factory=list)
-    successes: Sequence[LinkSuccess] = field(default_factory=list)
-    no_incompletes: bool = False
+class LinkSuccess(CommandResultAccumulator):
+    name: str
+    found_location: Path
+
+    def accumulate(self, result: "LinkCommandResult"):
+        result.successes.append(self)
 
 
-def link(data_dirs: Set[Path], dry_run: bool) -> LinkResult:
-    incomplete_responses = get_incompletes()
-    responses: Mapping[str, Mapping] = {
-        Torrent.from_file(torrent["torrent_file"]).info_hash: torrent
-        for torrent in incomplete_responses
-    }
-    if len(incomplete_responses) == 0:
-        return LinkResult(no_incompletes=True)
+@dataclass
+class LinkCommandResult(CommandResult):
+    unmatched: MutableSequence[LinkUnmatched] = field(default_factory=list)
+    failed: MutableSequence[LinkFailure] = field(default_factory=list)
+    successes: MutableSequence[LinkSuccess] = field(default_factory=list)
 
-    search = TorrentSearch()
-    search += [Path(torrent["torrent_file"]) for torrent in incomplete_responses]
-    matches: Mapping[Torrent, Path] = find(search, data_dirs)
+    def output(self):
+        pass
 
-    matching_hashes = {match.info_hash for match in matches.keys()}
-    failed_hashes = set(responses.keys()) - matching_hashes
-    unmatched_names = []
-    for failed_hash in failed_hashes:
-        torrent = responses[failed_hash]
-        torrent_file = Torrent.from_file(torrent["torrent_file"])
-        unmatched_names.append(torrent_file.name)
 
-    successes: MutableSequence[LinkSuccess] = []
-    failures: MutableSequence[LinkFailure] = []
-    failures.extend([LinkFailure(name, matched=False) for name in unmatched_names])
-    for (torrent, path) in matches.items():
-        torrent_response = responses[torrent.info_hash]
-        if not dry_run:
-            successes.append(LinkSuccess(torrent.name, path))
-        else:
-            move_response = client.torrent.move(
-                ids=torrent_response["id"], location=str(path.resolve(strict=True))
+@dataclass
+class DryRunLinkCommandResult(CommandResult):
+    unmatched: MutableSequence[LinkUnmatched] = field(default_factory=list)
+    failed: MutableSequence[LinkFailure] = field(default_factory=list)
+    successes: MutableSequence[LinkSuccess] = field(default_factory=list)
+
+    def output(self):
+        pass
+
+
+class LinkTorrent:
+    def __init__(self, clutch_link: ClutchLink, client: Client):
+        self.clutch_link = clutch_link
+        self.client = client
+
+    def execute(self) -> CommandResultAccumulator:
+        for operation in [MoveTorrent, VerifyTorrent]:
+            name = self.clutch_link.torrent.name
+            found_path = self.clutch_link.found_path
+            try:
+                operation(self.clutch_link, self.client).execute()
+            except ClutchError as e:
+                return LinkFailure(name, found_path, e.message)
+            return LinkSuccess(name, found_path)
+
+
+class LinkCommand(Command):
+    def __init__(self, data_dirs: Set[Path], torrent_files: Set[Path], client: TransmissionApi):
+        self.client = client
+        self.finder = TorrentFinder(data_dirs, torrent_files)
+        self.search_result: SearchResult = self.finder.find()
+
+    def __get_incomplete_hashes(self) -> Set[str]:
+        return self.incomplete_response.keys()
+
+    def run(self) -> LinkCommandResult:
+        result = LinkCommandResult()
+        for accumulator in self.__link_matched():
+            accumulator.accumulate(result)
+
+        return result
+
+    def __link_matched(self) -> Sequence[CommandResultAccumulator]:
+        accumulators: MutableSequence[CommandResultAccumulator] = []
+        for (torrent, found_path) in self.__get_matches().items():
+            torrent_id = self.__get_client_id(torrent.hash_string)
+            clutch_link = ClutchLink(torrent_id, torrent, found_path)
+            accumulator = LinkTorrent(clutch_link, self.client).execute()
+            accumulators.append(accumulator)
+        return accumulators
+
+    def __get_client_id(self, torrent_hash: str) -> int:
+        return self.incomplete_response[torrent_hash].id
+
+    def __get_matches(self) -> Mapping[Torrent, Path]:
+        result: MutableMapping[Torrent, Path] = {}
+        for matching_hash in self.__get_matching_hashes():
+            torrent_tuple: TorrentTuple = self.finder.register.get_selected(
+                matching_hash
             )
-            if move_response.result != "success":
-                failures.append(LinkFailure(torrent.name, move_response.result))
-                continue
-            verify_response = client.torrent.action(
-                ids=torrent_response["id"], method=TorrentActionMethod.VERIFY
-            )
-            if verify_response.result != "success":
-                failures.append(LinkFailure(torrent.name, verify_response.result))
-                continue
-            else:
-                successes.append(LinkSuccess(torrent.name, path))
-    return LinkResult(failures, successes)
+            result[torrent_tuple.torrent] = self.search_result.matches[
+                matching_hash
+            ]
+        return result
+
+    def __get_matching_hashes(self) -> Set[str]:
+        return self.search_result.matches.keys()
+
+    def __get_unmatched_hashes(self) -> Set[str]:
+        return self.search_result.misses.keys()
+
+
+class DryRunLinkCommand(LinkCommand):
+    def __link_matched(self) -> LinkCommandResult:
+        command_result: LinkCommandResult = LinkCommandResult()
+        accumulators: MutableSequence[CommandResultAccumulator] = []
+        for (torrent, found_path) in self.__get_matches().items():
+            accumulators.append(LinkSuccess(torrent.name, found_path))
+        return command_result
+
+
+@dataclass
+class LinkListCommandResult(CommandResult):
+    incompletes: Mapping[str, TorrentAccessorObject]
+
+    def output(self):
+        if len(self.incompletes) > 0:
+            for (hash_string, torrent) in self.incompletes.items():
+                print(f'{torrent.name}: {torrent.download_dir}')
+
+
+class ListLinkCommand(Command):
+    def __init__(self, client: TransmissionApi):
+        self.client = client
+        self.incomplete_response: Mapping[
+            str, TorrentAccessorObject
+        ] = IncompleteTorrents(client).get_responses()
+
+    def run(self) -> LinkListCommandResult:
+        return LinkListCommandResult(self.incomplete_response)

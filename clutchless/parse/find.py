@@ -22,8 +22,8 @@ class FindArgs:
     torrent_files: Set[Path]
     data_dirs: Set[Path]
 
-
-def parse_find(args: Mapping) -> FindArgs:
-    torrent_files = parse_torrent_files(args["<torrents>"])
-    data_dirs = parse_data_dirs(args["-d"])
-    return FindArgs(torrent_files, data_dirs)
+    @classmethod
+    def parse_find(cls, args: Mapping) -> "FindArgs":
+        torrent_files = parse_torrent_files(args["<torrents>"])
+        data_dirs = parse_data_dirs(args["-d"])
+        return cls(torrent_files, data_dirs)

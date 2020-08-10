@@ -4,8 +4,6 @@ from typing import Sequence, MutableSequence
 from clutch.network.rpc.message import Response
 from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
 
-from clutchless.client import client
-
 
 @dataclass
 class PrunedTorrent:

@@ -5,7 +5,7 @@ from typing import Sequence, Set
 from clutch.network.rpc.message import Response
 from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
 
-from clutchless.client import client
+from clutchless.transmission import client
 from clutchless.parse.shared import parse_torrent_files
 from clutchless.search import TorrentSearch
 

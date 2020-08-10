@@ -10,10 +10,8 @@ from clutch.schema.user.response.torrent.add import (
     TorrentAdd,
 )
 
-from clutchless.client import client
 from clutchless.console import Command, CommandResult
 from clutchless.parse.add import AddArgs, AddFlags
-from clutchless.search import TorrentSorter, TorrentRegister
 from clutchless.subcommand.find import TorrentFinder
 
 
@@ -31,24 +29,46 @@ class AddResult(CommandResult):
         pass
 
 
+@dataclass
+class DryAddResult(CommandResult):
+    added_torrents: Mapping[str, Path]
+    matches: Mapping[str, Path]
+
+    def output(self):
+        pass
+
+
 class DryRunAddCommand(Command):
     def __init__(self, args: AddArgs, flags: AddFlags):
         self.args = args
+        self.flags = flags
+        self.finder = TorrentFinder(args.data_dirs, args.torrent_files)
 
-    def run(self) -> AddResult:
-        pass
-        # fake_added = {torrent: torrent.name for (torrent, path) in to_add.items()}
-        # return AddResult(added_torrents=fake_added, matches=matches)
+    def run(self) -> DryAddResult:
+        fake_added = self.__get_to_add()
+        return DryAddResult(
+            added_torrents=fake_added, matches=dict(self.finder.search_result.matches)
+        )
+
+    def __force_misses(self, to_add: MutableMapping[str, Path]) -> Mapping[str, Path]:
+        if self.flags.force:
+            # add the unmatched (without a download_dir) - it'll be default
+            to_add.update({key: None for key in self.finder.search_result.misses})
+        return to_add
+
+    def __get_to_add(self) -> Mapping[str, Path]:
+        to_add: MutableMapping[str, Optional[Path]] = dict(
+            self.finder.search_result.matches
+        )
+        to_add.update({torrent: torrent.name for (torrent, path) in to_add.items()})
+        return self.__force_misses(to_add)
 
 
 class AddCommand(Command):
     def __init__(self, args: AddArgs, flags: AddFlags):
         self.args = args
         self.flags = flags
-        self.sorter: TorrentSorter = TorrentSorter(args.torrent_files)
-        self.register: TorrentRegister = self.sorter.register
-        self.finder: TorrentFinder = TorrentFinder(args.data_dirs, args.torrent_files)
-        self.search_result = self.finder.find()
+        self.finder = TorrentFinder(args.data_dirs, args.torrent_files)
 
     @staticmethod
     def __add_torrent(torrent: Path, download_dir: Path = None) -> Response[TorrentAdd]:
@@ -56,15 +76,24 @@ class AddCommand(Command):
             "filename": str(torrent.resolve(strict=True)),
             "paused": True,
         }
-        if download_dir:
-            arguments["download_dir"] = str(download_dir.resolve(strict=True))
+        AddCommand.__add_download_dir(download_dir, arguments)
         return client.torrent.add(arguments)
 
+    @staticmethod
+    def __add_download_dir(download_dir: Path, arguments: TorrentAddArguments):
+        if download_dir:
+            arguments["download_dir"] = str(download_dir.resolve(strict=True))
+
     def __get_to_add(self) -> Mapping[str, Path]:
-        to_add: MutableMapping[str, Optional[Path]] = dict(self.search_result.matches)
+        to_add: MutableMapping[str, Optional[Path]] = dict(
+            self.finder.search_result.matches
+        )
+        return self.__force_misses(to_add)
+
+    def __force_misses(self, to_add: MutableMapping[str, Path]) -> Mapping[str, Path]:
         if self.flags.force:
             # add the unmatched (without a download_dir) - it'll be default
-            to_add.update({key: None for key in self.search_result.misses})
+            to_add.update({key: None for key in self.finder.search_result.misses})
         return to_add
 
     def run(self) -> AddResult:
@@ -73,12 +102,6 @@ class AddCommand(Command):
     def __add(self) -> AddResult:
         add_result = AddResult()
         to_add: Mapping[str, Path] = self.__get_to_add()
-        if self.flags.dry_run:
-            fake_added = {torrent: torrent.name for (torrent, path) in to_add.items()}
-            add_result = AddResult(
-                added_torrents=fake_added, matches=dict(self.search_result.matches)
-            )
-            return add_result
         for (torrent_hash, download_dir) in to_add.items():
             self.__handle_torrent(torrent_hash, download_dir, add_result)
         return add_result
@@ -87,21 +110,21 @@ class AddCommand(Command):
         self, torrent_hash: str, download_dir: Path, add_result: AddResult
     ):
         response = self.__add_torrent(
-            self.register.get_selected(torrent_hash).path, download_dir
+            self.finder.get_selected_path(torrent_hash), download_dir
         )
         self.__handle_add_response(response, add_result, torrent_hash)
 
     def __handle_add_response(
         self, response: Response[TorrentAdd], add_result: AddResult, torrent_hash: str
     ):
-        torrent_added: ResponseTorrent = response.arguments.torrent_added
-        torrent_duplicated: ResponseTorrent = response.arguments.torrent_duplicate
         if response.result == "success":
+            torrent_added: ResponseTorrent = response.arguments.torrent_added
+            torrent_duplicated: ResponseTorrent = response.arguments.torrent_duplicate
             if torrent_added is not None and len(torrent_added.dict().items()) > 0:
                 add_result.added_torrents[torrent_hash] = torrent_added.name
                 # delete added torrent
                 if self.flags.delete_added:
-                    torrent_path = self.register.get_selected(torrent_hash).path
+                    torrent_path = self.finder.get_selected_path(torrent_hash)
                     os.remove(torrent_path)
                     add_result.deleted_torrents.append(torrent_path)
             elif (

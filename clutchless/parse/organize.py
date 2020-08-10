@@ -20,32 +20,39 @@ class SpecError(Exception):
     pass
 
 
-def get_tracker_specs(options: str) -> Mapping[int, str]:
-    """
-    Separate options are delimited by a semicolon and option keys are delimited with a comma.
-    Terminating with a delimiter is acceptable (it's the same as no delimiter).
-    For example, torrents with tracker id 1 and 2 are organized into Folder1, id 3 into Folder2:
-    1,2=Folder1;3=Folder2
-    """
-    result: MutableMapping[int, str] = {}
-    for option in options.rstrip(";").split(";"):
-        split_option = option.split("=")
-        if len(split_option) > 2:
-            raise (SpecError(f"{option} needs to be delimited."))
-        if any(part == "" for part in split_option):
-            raise (SpecError(f"Empty string in option: {option}"))
-        try:
-            for index in [int(ind) for ind in split_option[0].split(",")]:
-                folder_name = split_option[1]
-                if not all(ch.isalnum() for ch in folder_name):
-                    raise SpecError(f"{folder_name} needs to be only alphanumeric.")
-                elif len(folder_name) == 0:
-                    raise SpecError(f"Folder name is empty.")
-                else:
-                    if index in result:
-                        raise SpecError(f"{index} is a duplicate index.")
+class TrackerSpecs:
+    def __init__(self, raw_input: str):
+        self.raw_input = raw_input
+
+    def parse(self) -> Mapping[int, str]:
+        return self.__parse(self.raw_input)
+
+    def __parse(self, raw_input: str) -> Mapping[int, str]:
+        """
+        Separate options are delimited by a semicolon and option keys are delimited with a comma.
+        Terminating with a delimiter is acceptable (it's the same as no delimiter).
+        For example, torrents with tracker id 1 and 2 are organized into Folder1, id 3 into Folder2:
+        1,2=Folder1;3=Folder2
+        """
+        result: MutableMapping[int, str] = {}
+        for option in raw_input.rstrip(";").split(";"):
+            split_option = option.split("=")
+            if len(split_option) > 2:
+                raise (SpecError(f"{option} needs to be delimited."))
+            if any(part == "" for part in split_option):
+                raise (SpecError(f"Empty string in option: {option}"))
+            try:
+                for index in [int(ind) for ind in split_option[0].split(",")]:
+                    folder_name = split_option[1]
+                    if not all(ch.isalnum() for ch in folder_name):
+                        raise SpecError(f"{folder_name} needs to be only alphanumeric.")
+                    elif len(folder_name) == 0:
+                        raise SpecError(f"Folder name is empty.")
                     else:
-                        result[index] = folder_name
-        except ValueError:
-            raise SpecError(f"{split_option[0]} is not an integer.")
-    return result
+                        if index in result:
+                            raise SpecError(f"{index} is a duplicate index.")
+                        else:
+                            result[index] = folder_name
+            except ValueError:
+                raise SpecError(f"{split_option[0]} is not an integer.")
+        return result

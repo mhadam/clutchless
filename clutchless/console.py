@@ -20,159 +20,153 @@ See 'clutchless help <command>' for more information on a specific command.
 
 """
 from pathlib import Path
-from typing import Set, KeysView, Sequence, Mapping, Protocol, Any
+from typing import Set, Sequence, Mapping
 
 from clutch.network.rpc.message import Response
 from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
 from docopt import docopt
-from torrentool.torrent import Torrent
 
-from clutchless.client import client
-from clutchless.message.add import print_add
+from clutchless.command import Command, CommandResult, CommandFactory
 from clutchless.message.archive import print_archive_count
-from clutchless.message.find import print_find
-from clutchless.message.link import print_incompletes, print_linked
-from clutchless.message.organize import print_tracker_list
 from clutchless.message.prune import print_pruned, print_pruned_files
 from clutchless.parse.add import parse_add_flags, parse_add_arguments
-from clutchless.parse.find import parse_find, FindArgs
-from clutchless.parse.organize import get_tracker_specs, SpecError
+from clutchless.parse.find import FindArgs
+from clutchless.parse.organize import SpecError
 from clutchless.parse.shared import parse_data_dirs
-from clutchless.subcommand.add import AddResult, AddCommand
+from clutchless.subcommand.add import AddCommand
 from clutchless.subcommand.archive import archive
-from clutchless.subcommand.find import FindCommand, FindResult
-from clutchless.subcommand.link import link, get_incompletes, LinkResult
+from clutchless.subcommand.find import FindCommand
+from clutchless.subcommand.link import LinkCommand, DryRunLinkCommand, ListLinkCommand
 from clutchless.subcommand.organize import (
-    get_ordered_tracker_list,
-    get_tracker_folder_map,
-    get_overrides,
-    move_torrent,
+    ListOrganizeCommand,
 )
+from clutchless.subcommand.other import MissingCommand
 from clutchless.subcommand.prune.client import prune_client, PrunedResult
 from clutchless.subcommand.prune.folder import prune_folders
+from clutchless.transmission import TransmissionApi
 
 
-class CommandResult(Protocol):
-    """Protocol for command result."""
+def add_factory(argv: Mapping) -> Command:
+    # parse arguments
+    from clutchless.parse import add as add_command
 
-    def output(self):
-        raise NotImplementedError
+    args = docopt(doc=add_command.__doc__, argv=argv)
+    add_args = parse_add_arguments(args)
+    add_flags = parse_add_flags(args)
 
-
-class Command(Protocol):
-    """Protocol for commands."""
-
-    def run(self) -> CommandResult:
-        raise NotImplementedError
+    # action
+    return AddCommand(add_args, add_flags)
 
 
-def main():
-    args = docopt(__doc__, options_first=True)
+def link_factory(argv: Mapping, client: TransmissionApi) -> Command:
+    # parse
+    from clutchless.parse import link as link_command
+
+    link_args = docopt(doc=link_command.__doc__, argv=argv)
+    if link_args.get("--list"):
+        return ListLinkCommand(client)
+
+    data_dirs: Set[Path] = parse_data_dirs(link_args.get("<data>"))
+    dry_run = link_args.get("--dry-run")
+    torrent_files = client.get_incomplete_torrent_files()
+    if dry_run:
+        return DryRunLinkCommand(data_dirs, torrent_files, client)
+    return LinkCommand(data_dirs, torrent_files, client)
+
+
+def find_factory(argv: Mapping) -> Command:
+    # parse arguments
+    from clutchless.parse import find as find_command
+
+    find_args: FindArgs = FindArgs.parse_find(
+        docopt(doc=find_command.__doc__, argv=argv)
+    )
+    return FindCommand(find_args)
+
+
+def organize_factory(argv: Mapping) -> Command:
+    # parse
+    from clutchless.parse import organize as organize_command
+
+    org_args = docopt(doc=organize_command.__doc__, argv=argv)
+    # action
+    if org_args.get("--list"):
+        return ListOrganizeCommand()
+    else:
+        trackers_option = org_args.get("-t")
+        if trackers_option:
+            try:
+                tracker_specs = get_tracker_specs(trackers_option)
+            except SpecError as e:
+                print(f"Invalid formatted tracker spec: {e}")
+                return
+            overrides = get_overrides(tracker_specs)
+            tracker_folder_map = get_tracker_folder_map(overrides)
+        else:
+            tracker_folder_map = get_tracker_folder_map()
+
+        response: Response[TorrentAccessorResponse] = client.torrent.accessor(
+            fields=["id", "trackers", "name", "download_dir"]
+        )
+        # clutchless --address http://transmission:9091/transmission/rpc organize --list
+        # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
+        # clutchless --address http://transmission:9091/transmission/rpc organize /app/resources/new -t "0=Testing"
+        org_location = org_args.get("<location>")
+        for torrent in response.arguments.torrents:
+            # organize the torrent when any tracker is found to be mapped to
+            found_folder = next(
+                (
+                    tracker_folder_map.get(tracker.announce)
+                    for tracker in torrent.trackers
+                ),
+                None,
+            )
+            if found_folder is None:
+                found_folder = org_args.get("-d")
+            if found_folder:
+                new_location = Path(org_location, found_folder).resolve(
+                    strict=False
+                )
+                if Path(torrent.download_dir) != new_location:
+                    move_torrent(torrent, new_location)
+                else:
+                    print(
+                        f"Already same dir for id:{torrent.id} name:{torrent.name}, ignoring"
+                    )
+            else:
+                print(
+                    f"Didn't move torrent with id:{torrent.id} name:{torrent.name}"
+                )
+
+
+def archive_factory(argv: Mapping) -> Command:
+    pass
+
+
+command_factories: Mapping[str, CommandFactory] = {
+    "add": add_factory,
+    "link": link_factory,
+    "find": find_factory,
+    "organize": organize_factory,
+    "archive": archive_factory
+}
+
+
+def command_factory(args: Mapping) -> Command:
+    client = TransmissionApi(args)
     # good to remember that argv is a list of arguments
     # here we join together a list of the original command & args without "top-level" options
     argv = [args["<command>"]] + args["<args>"]
     command = args.get("<command>")
-    address = args.get("--address")
-    # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
-    if address:
-        client.set_connection(address=address)
+
     if command == "add":
-        # parse arguments
-        from clutchless.parse import add as add_command
-
-        args = docopt(doc=add_command.__doc__, argv=argv)
-        add_args = parse_add_arguments(args)
-        add_flags = parse_add_flags(args)
-
-        # action
-        add_command = AddCommand(add_args, add_flags)
-        add_result: AddResult = add_command.run()
-        add_result.output()
+        return add_factory(argv)
     elif command == "link":
-        # parse
-        from clutchless.parse import link as link_command
-
-        link_args = docopt(doc=link_command.__doc__, argv=argv)
-        if link_args.get("--list"):
-            response: Sequence[Mapping] = get_incompletes()
-            print_incompletes(response)
-            return
-        dry_run = link_args.get("--dry-run")
-        if dry_run:
-            print("These are dry-run results.")
-        data_dirs: Set[Path] = parse_data_dirs(link_args.get("<data>"))
-        result: LinkResult = link(data_dirs, dry_run)
-        print_linked(result)
+        return link_factory(argv, client)
     elif command == "find":
-        try:
-            # parse arguments
-            from clutchless.parse import find as find_command
-
-            find_args: FindArgs = parse_find(
-                docopt(doc=find_command.__doc__, argv=argv)
-            )
-            command = FindCommand(find_args)
-            find_result: FindResult = command.run()
-            find_result.output()
-        except KeyError as e:
-            print(f"failed:{e}")
-        except ValueError as e:
-            print(f"invalid argument(s):{e}")
+        return find_factory(argv)
     elif command == "organize":
-        # parse
-        from clutchless.parse import organize as organize_command
-
-        org_args = docopt(doc=organize_command.__doc__, argv=argv)
-        # action
-        if org_args.get("--list"):
-            tracker_list = get_ordered_tracker_list()
-            # output message
-            print_tracker_list(tracker_list)
-        else:
-            trackers_option = org_args.get("-t")
-            if trackers_option:
-                try:
-                    tracker_specs = get_tracker_specs(trackers_option)
-                except SpecError as e:
-                    print(f"Invalid formatted tracker spec: {e}")
-                    return
-                overrides = get_overrides(tracker_specs)
-                tracker_folder_map = get_tracker_folder_map(overrides)
-            else:
-                tracker_folder_map = get_tracker_folder_map()
-
-            response: Response[TorrentAccessorResponse] = client.torrent.accessor(
-                fields=["id", "trackers", "name", "download_dir"]
-            )
-            # clutchless --address http://transmission:9091/transmission/rpc organize --list
-            # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
-            # clutchless --address http://transmission:9091/transmission/rpc organize /app/resources/new -t "0=Testing"
-            org_location = org_args.get("<location>")
-            for torrent in response.arguments.torrents:
-                # organize the torrent when any tracker is found to be mapped to
-                found_folder = next(
-                    (
-                        tracker_folder_map.get(tracker.announce)
-                        for tracker in torrent.trackers
-                    ),
-                    None,
-                )
-                if found_folder is None:
-                    found_folder = org_args.get("-d")
-                if found_folder:
-                    new_location = Path(org_location, found_folder).resolve(
-                        strict=False
-                    )
-                    if Path(torrent.download_dir) != new_location:
-                        move_torrent(torrent, new_location)
-                    else:
-                        print(
-                            f"Already same dir for id:{torrent.id} name:{torrent.name}, ignoring"
-                        )
-                else:
-                    print(
-                        f"Didn't move torrent with id:{torrent.id} name:{torrent.name}"
-                    )
+        return organize_factory(argv)
     elif command == "archive":
         # parse
         from clutchless.parse import archive as archive_command
@@ -209,3 +203,11 @@ def main():
         else:
             print("Invalid prune subcommand: requires <folder|client>")
             return
+    return MissingCommand()
+
+
+def main():
+    args = docopt(__doc__, options_first=True)
+    command: Command = command_factory(args)
+    result: CommandResult = command.run()
+    result.output()
