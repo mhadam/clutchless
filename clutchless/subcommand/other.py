@@ -1,12 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence, Set
 
 from clutch import Client
-from clutch.network.rpc.message import Response, Request
-from clutch.schema.user.method.torrent.accessor import TorrentAccessorField
+from clutch.network.rpc.message import Response
 from clutch.schema.user.method.torrent.action import TorrentActionMethod
-from clutch.schema.user.response.torrent.accessor import TorrentAccessorObject, TorrentAccessorResponse
 from torrentool.torrent import Torrent
 
 from clutchless.command import CommandResult, Command
@@ -71,10 +68,3 @@ class VerifyTorrent:
     def __handle_verify_response(self, verify_response: Response):
         if verify_response.result != "success":
             raise ClutchError(self.clutch_link, verify_response.result)
-
-
-def query_torrents(client: Client, fields: Set[TorrentAccessorField]) -> Sequence[TorrentAccessorObject]:
-    response: Request[TorrentAccessorResponse] = client.torrent.accessor(
-        fields=fields
-    )
-    return response.arguments.torrents

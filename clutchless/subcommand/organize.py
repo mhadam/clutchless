@@ -1,23 +1,18 @@
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import MutableMapping, Set, Sequence, MutableSequence, Mapping
 from urllib.parse import urlparse
 
-from clutch import Client
-from clutch.schema.user.response.torrent.accessor import (
-    TorrentAccessorObject,
-    Tracker,
-)
-
-from clutchless.command import Command, CommandResult
-from clutchless.parse.organize import TrackerSpecs
-from clutchless.subcommand.other import query_torrents
+from clutchless.command import Command, CommandResult, CommandResultAccumulator
+from clutchless.parse.organize import TrackerSpec, TrackerSpecParser
+from clutchless.transmission import TransmissionApi, TransmissionError
 
 
 @dataclass
-class OrganizeTracker:
-    netloc: str
-    addresses: Sequence[str]
+class FolderNameUrls:
+    folder_name: str
+    announce_urls: Set[str]
 
 
 class HostnameFormatter:
@@ -33,110 +28,185 @@ class HostnameFormatter:
     def split_hostname(hostname: str) -> Sequence[str]:
         split = hostname.split(".")
         if len(split) > 2:
-            return split[1:]
+            return split[-2:]
         return split
 
 
-class ResponseTrackers:
-    def __init__(self, client: Client):
-        self.torrents: Sequence[TorrentAccessorObject] = query_torrents(client, fields={"trackers"})
+class FolderNameGrouper:
+    """Takes transmission client, queries for torrents and compiles a dict: formatted hostname -> announce urls"""
+    def __init__(self, client: TransmissionApi):
+        self.client = client
 
-    def get_response_tracker_map(self) -> Mapping[str, Set[str]]:
-        return self.__map_formatted_hostname_to_trackers()
+    def get_folder_name_to_announce_urls(self) -> Mapping[str, Set[str]]:
+        return self.__get_folder_name_to_announce_urls()
 
-    def __map_formatted_hostname_to_trackers(self) -> Mapping[str, Set[str]]:
-        """Maps a formatted version of netloc to tracker addresses."""
-        trackers: MutableMapping[str, Set[str]] = {}
-        for torrent in self.torrents:
-            for tracker in torrent.trackers:
-                try:
-                    announce_url = tracker.announce
-                    hostname = HostnameFormatter.format(announce_url)
-                    try:
-                        trackers[hostname].add(tracker.announce)
-                    except KeyError:
-                        trackers[hostname] = {tracker.announce}
-                except IndexError:
-                    pass
-        return trackers
-
-
-class OrderedTrackerList:
-    def __init__(self):
-        pass
-
-    def get_ordered_tracker_list() -> Sequence[OrganizeTracker]:
-        trackers = get_tracker_list_map()
+    def get_ordered_folder_name_to_announce_urls(self) -> Sequence[FolderNameUrls]:
+        trackers = self.__get_folder_name_to_announce_urls()
         sorted_trackers = OrderedDict(sorted(trackers.items()))
-        tracker_list: MutableSequence[OrganizeTracker] = []
-        for (netloc, addresses) in sorted_trackers.items():
-            tracker_list.append(OrganizeTracker(netloc, list(addresses)))
+        tracker_list: MutableSequence[FolderNameUrls] = []
+        for (folder_name, addresses) in sorted_trackers.items():
+            tracker_list.append(FolderNameUrls(folder_name, set(addresses)))
         return tracker_list
 
-    def get_tracker_list_map() -> Mapping[str, Set[str]]:
-        """Gets formatted_hostname:Set[announce_url] map"""
-        torrents: Sequence[TorrentAccessorObject] = query_torrents()
-        return map_formatted_hostname_to_trackers(torrents)
-
-    def get_tracker_folder_map(overrides: Mapping[str, str] = None) -> Mapping[str, str]:
-        """Takes overrides in form announce_url:folder_name"""
-        # tracker to folder map (announce URL)
-        if overrides is None:
-            overrides = {}
-        torrents: Sequence[TorrentAccessorObject] = query_torrents()
-        trackers: MutableMapping[str, str] = {}  # tracker addresses to folder
-        for torrent in torrents:
-            for tracker in torrent.trackers:
-                hostname = format_hostname(tracker)
-                cached = trackers.get(tracker.announce)
-                override = overrides.get(tracker.announce)
-                if cached is not None:
-                    if cached != hostname and cached != override:
-                        raise ValueError(
-                            "duplicate tracker announce url making tracker->hostname map"
-                        )
-                else:
-                    if override is not None:
-                        trackers[tracker.announce] = override
-                    else:
-                        trackers[tracker.announce] = hostname
+    def __get_folder_name_to_announce_urls(self) -> Mapping[str, Set[str]]:
+        """Maps a formatted version of netloc to tracker addresses."""
+        trackers: MutableMapping[str, Set[str]] = {}
+        for url in self.client.get_announce_urls():
+            try:
+                hostname = HostnameFormatter.format(url)
+                try:
+                    trackers[hostname].add(url)
+                except KeyError:
+                    trackers[hostname] = {url}
+            except IndexError:
+                pass
         return trackers
 
 
-def get_overrides(tracker_specs: Mapping[int, str]) -> Mapping[str, str]:
-    """Takes index:folder_name and outputs announce_url:folder_name"""
-    output: MutableMapping[str, str] = {}
-    trackers = get_ordered_tracker_list()
-    for (index, spec) in tracker_specs.items():
-        tracker: OrganizeTracker = trackers[index]
-        for announce_url in tracker.addresses:
-            output[announce_url] = spec
-    return output
+class FolderNameChooser:
+    """Takes response trackers and orders them
 
+    Takes overrides in form announce_url:folder_name
+    """
+    def __init__(self, client: TransmissionApi, overrides: Mapping[int, str] = None):
+        self.client = client
+        if not overrides:
+            overrides = dict()
+        self.overrides = overrides
 
-class OrganizeTorrent(Command):
-    def __init__(self):
-        pass
+    def get_announce_url_to_folder_name(self) -> Mapping[str, str]:
+        trackers: MutableMapping[str, str] = {}  # tracker addresses to folder
+        overrides: Mapping[str, str] = self.__translate_indices_to_urls()
+        for url in self.client.get_announce_urls():
+            hostname = HostnameFormatter.format(url)
+            cached = trackers.get(url)
+            override = overrides.get(url)
+            if cached is not None:
+                if cached != hostname and cached != override:
+                    raise ValueError(
+                        "duplicate tracker url url making tracker->hostname map"
+                    )
+            else:
+                if override is not None:
+                    trackers[url] = override
+                else:
+                    trackers[url] = hostname
+        return trackers
 
-    def run(self) -> CommandResult:
-        pass
+    def __translate_indices_to_urls(self) -> Mapping[str, str]:
+        """Returns map: urls to folder names"""
+        result: MutableMapping[str, str] = {}
+        grouper = FolderNameGrouper(self.client)
+        ordered_folder_map: Sequence[FolderNameUrls] = grouper.get_ordered_folder_name_to_announce_urls()
+        for (index, entry) in enumerate(ordered_folder_map):
+            for url in entry.announce_urls:
+                try:
+                    result[url] = self.overrides[index]
+                except KeyError:
+                    pass
+        return result
 
 
 @dataclass
-class ListOrganizeCommandResult(CommandResult):
-    hostname_to_trackers: Mapping[str, Set[str]]
+class OrganizeSuccess(CommandResultAccumulator):
+    torrent_id: int
+    new_path: Path
+    old_path: Path
+
+    def accumulate(self, result: "OrganizeCommandResult"):
+        result.successes.append(self)
+
+
+@dataclass
+class OrganizeFailure(CommandResultAccumulator):
+    torrent_id: int
+    failure: str
+
+    def accumulate(self, result: "OrganizeCommandResult"):
+        result.failures.append(self)
+
+
+@dataclass
+class OrganizeCommandResult(CommandResult):
+    successes: MutableSequence[OrganizeSuccess] = field(default_factory=list)
+    failures: MutableSequence[OrganizeFailure] = field(default_factory=list)
 
     def output(self):
         pass
 
 
+class OrganizeCommand(Command):
+    def __init__(self, raw_spec: str, new_path: Path, client: TransmissionApi):
+        self.raw_spec = raw_spec
+        self.client = client
+        self.new_path = new_path
+
+    def run(self) -> OrganizeCommandResult:
+        result = OrganizeCommandResult()
+        accumulators: Sequence[CommandResultAccumulator] = self.__organize()
+        for accumulator in accumulators:
+            accumulator.accumulate(result)
+        return result
+
+    def __organize(self) -> Sequence[CommandResultAccumulator]:
+        accumulators: MutableSequence[CommandResultAccumulator] = []
+        announce_url_to_folder_name: Mapping[str, str] = self.__get_announce_url_to_folder_name()
+        for (torrent_id, announce_urls) in self.client.get_torrent_trackers():
+            folder_name = self.__get_folder_name(announce_urls, announce_url_to_folder_name)
+            try:
+                new_path = self.__get_new_torrent_path(folder_name)
+                self.__move(torrent_id, new_path)
+                old_path = self.client.get_torrent_location(torrent_id)
+                accumulators.append(OrganizeSuccess(torrent_id, new_path, old_path))
+            except TransmissionError as e:
+                accumulators.append(OrganizeFailure(torrent_id, e.message))
+        return accumulators
+
+    def __get_folder_name(self, urls, url_to_folder_name: Mapping[str, str]) -> str:
+        for url in urls:
+            try:
+                return url_to_folder_name[url]
+            except KeyError:
+                pass
+        return "other_torrents"
+
+    def __move(self, torrent_id: int, new_path: Path):
+        self.client.move_torrent_location(torrent_id, new_path)
+
+    def __get_new_torrent_path(self, folder_name: str) -> Path:
+        return Path(self.new_path, folder_name)
+
+    def __get_announce_url_to_folder_name(self) -> Mapping[str, str]:
+        spec: TrackerSpec = self.__get_spec()
+        chooser = FolderNameChooser(self.client, spec)
+        url_to_folder_name = chooser.get_announce_url_to_folder_name()
+        return url_to_folder_name
+
+    def __get_spec(self) -> TrackerSpec:
+        return TrackerSpecParser().parse(self.raw_spec)
+
+
+@dataclass
+class ListOrganizeCommandResult(CommandResult):
+    hostname_to_trackers: Sequence[FolderNameUrls]
+
+    def output(self):
+        self.__print_if_empty()
+        for entry in self.hostname_to_trackers:
+            self.__print_entry(entry)
+
+    def __print_if_empty(self):
+        if len(self.hostname_to_trackers) < 1:
+            print("No folder names to organize into (are there any torrents?).")
+
+    def __print_entry(self, entry: FolderNameUrls):
+        pass
+
+
 class ListOrganizeCommand(Command):
-    def __init__(self, raw_spec: str):
-        self.parsed_spec = TrackerSpecs(raw_spec).parse()
+    def __init__(self, client: TransmissionApi):
+        self.client = client
 
     def run(self) -> ListOrganizeCommandResult:
-
-        tracker_list = get_ordered_tracker_list()
-        # output message
-        print_tracker_list(tracker_list)
-
+        hostname_to_trackers = FolderNameGrouper(self.client).get_ordered_folder_name_to_announce_urls()
+        return ListOrganizeCommandResult(hostname_to_trackers)

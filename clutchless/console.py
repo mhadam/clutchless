@@ -19,31 +19,25 @@ The available clutchless commands are:
 See 'clutchless help <command>' for more information on a specific command.
 
 """
+from collections import defaultdict
 from pathlib import Path
-from typing import Set, Sequence, Mapping
+from typing import Set, Mapping
 
-from clutch.network.rpc.message import Response
-from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
 from docopt import docopt
 
 from clutchless.command import Command, CommandResult, CommandFactory
-from clutchless.message.archive import print_archive_count
-from clutchless.message.prune import print_pruned, print_pruned_files
 from clutchless.parse.add import parse_add_flags, parse_add_arguments
 from clutchless.parse.find import FindArgs
-from clutchless.parse.organize import SpecError
 from clutchless.parse.shared import parse_data_dirs
 from clutchless.subcommand.add import AddCommand
-from clutchless.subcommand.archive import archive
+from clutchless.subcommand.archive import ArchiveCommand
 from clutchless.subcommand.find import FindCommand
 from clutchless.subcommand.link import LinkCommand, DryRunLinkCommand, ListLinkCommand
 from clutchless.subcommand.organize import (
-    ListOrganizeCommand,
+    ListOrganizeCommand, OrganizeCommand,
 )
 from clutchless.subcommand.other import MissingCommand
-from clutchless.subcommand.prune.client import prune_client, PrunedResult
-from clutchless.subcommand.prune.folder import prune_folders
-from clutchless.transmission import TransmissionApi
+from clutchless.transmission import TransmissionApi, clutch_factory
 
 
 def add_factory(argv: Mapping) -> Command:
@@ -84,130 +78,111 @@ def find_factory(argv: Mapping) -> Command:
     return FindCommand(find_args)
 
 
-def organize_factory(argv: Mapping) -> Command:
+def organize_factory(argv: Mapping, client: TransmissionApi) -> Command:
     # parse
     from clutchless.parse import organize as organize_command
 
     org_args = docopt(doc=organize_command.__doc__, argv=argv)
     # action
     if org_args.get("--list"):
-        return ListOrganizeCommand()
+        return ListOrganizeCommand(client)
     else:
-        trackers_option = org_args.get("-t")
-        if trackers_option:
-            try:
-                tracker_specs = get_tracker_specs(trackers_option)
-            except SpecError as e:
-                print(f"Invalid formatted tracker spec: {e}")
-                return
-            overrides = get_overrides(tracker_specs)
-            tracker_folder_map = get_tracker_folder_map(overrides)
-        else:
-            tracker_folder_map = get_tracker_folder_map()
-
-        response: Response[TorrentAccessorResponse] = client.torrent.accessor(
-            fields=["id", "trackers", "name", "download_dir"]
-        )
-        # clutchless --address http://transmission:9091/transmission/rpc organize --list
-        # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
-        # clutchless --address http://transmission:9091/transmission/rpc organize /app/resources/new -t "0=Testing"
-        org_location = org_args.get("<location>")
-        for torrent in response.arguments.torrents:
-            # organize the torrent when any tracker is found to be mapped to
-            found_folder = next(
-                (
-                    tracker_folder_map.get(tracker.announce)
-                    for tracker in torrent.trackers
-                ),
-                None,
-            )
-            if found_folder is None:
-                found_folder = org_args.get("-d")
-            if found_folder:
-                new_location = Path(org_location, found_folder).resolve(
-                    strict=False
-                )
-                if Path(torrent.download_dir) != new_location:
-                    move_torrent(torrent, new_location)
-                else:
-                    print(
-                        f"Already same dir for id:{torrent.id} name:{torrent.name}, ignoring"
-                    )
-            else:
-                print(
-                    f"Didn't move torrent with id:{torrent.id} name:{torrent.name}"
-                )
+        # # clutchless --address http://transmission:9091/transmission/rpc organize --list
+        # # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
+        # # clutchless --address http://transmission:9091/transmission/rpc organize /app/resources/new -t "0=Testing"
+        raw_spec = org_args.get("-t")
+        new_path = Path(org_args.get("<location>")).resolve(strict=False)
+        return OrganizeCommand(raw_spec, new_path, client)
 
 
-def archive_factory(argv: Mapping) -> Command:
-    pass
+def archive_factory(argv: Mapping, client: TransmissionApi) -> Command:
+    # parse
+    from clutchless.parse import archive as archive_command
 
-
-command_factories: Mapping[str, CommandFactory] = {
-    "add": add_factory,
-    "link": link_factory,
-    "find": find_factory,
-    "organize": organize_factory,
-    "archive": archive_factory
-}
-
-
-def command_factory(args: Mapping) -> Command:
-    client = TransmissionApi(args)
-    # good to remember that argv is a list of arguments
-    # here we join together a list of the original command & args without "top-level" options
-    argv = [args["<command>"]] + args["<args>"]
-    command = args.get("<command>")
-
-    if command == "add":
-        return add_factory(argv)
-    elif command == "link":
-        return link_factory(argv, client)
-    elif command == "find":
-        return find_factory(argv)
-    elif command == "organize":
-        return organize_factory(argv)
-    elif command == "archive":
-        # parse
-        from clutchless.parse import archive as archive_command
-
-        archive_args = docopt(doc=archive_command.__doc__, argv=argv)
-        location = Path(archive_args.get("<location>"))
-        if location:
-            # action
-            count = archive(Path(location))
-            # output message
-            print_archive_count(count, location)
-    elif command == "prune":
-        from clutchless.parse.prune import main as prune_command
-
-        args = docopt(doc=prune_command.__doc__, options_first=True, argv=argv)
-        prune_subcommand = args.get("<command>")
-        if prune_subcommand == "folder":
-            from clutchless.parse.prune import folder as prune_folder_command
-
-            prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
-            dry_run: bool = prune_args.get("--dry-run")
-            folders: Sequence[str] = prune_args.get("<folders>")
-            pruned_folders: Set[Path] = prune_folders(folders, dry_run)
-            if dry_run:
-                print("The following are dry run results.")
-            print_pruned_files(pruned_folders)
-        elif prune_subcommand == "client":
-            from clutchless.parse.prune import client as prune_client_command
-
-            prune_args = docopt(doc=prune_client_command.__doc__, argv=argv)
-            dry_run: bool = prune_args.get("--dry-run")
-            result: PrunedResult = prune_client(dry_run)
-            print_pruned(result, dry_run)
-        else:
-            print("Invalid prune subcommand: requires <folder|client>")
-            return
+    archive_args = docopt(doc=archive_command.__doc__, argv=argv)
+    location = Path(archive_args.get("<location>"))
+    if location:
+        return ArchiveCommand(location, client)
     return MissingCommand()
+
+
+def prune_factory(argv: Mapping) -> Command:
+    from clutchless.parse.prune import main as prune_command
+
+    args = docopt(doc=prune_command.__doc__, options_first=True, argv=argv)
+    prune_subcommand = args.get("<command>")
+    if prune_subcommand == "folder":
+        from clutchless.parse.prune import folder as prune_folder_command
+
+        prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
+        dry_run: bool = prune_args.get("--dry-run")
+        folders: Sequence[str] = prune_args.get("<folders>")
+        pruned_folders: Set[Path] = prune_folders(folders, dry_run)
+        if dry_run:
+            print("The following are dry run results.")
+        print_pruned_files(pruned_folders)
+    elif prune_subcommand == "client":
+        from clutchless.parse.prune import client as prune_client_command
+
+        prune_args = docopt(doc=prune_client_command.__doc__, argv=argv)
+        dry_run: bool = prune_args.get("--dry-run")
+        result: PrunedResult = prune_client(dry_run)
+        print_pruned(result, dry_run)
+    else:
+        print("Invalid prune subcommand: requires <folder|client>")
+
+
+class MissingCommandFactory(CommandFactory):
+    def __call__(self, *args, **kwargs):
+        return MissingCommand
+
+
+command_factories: Mapping[str, CommandFactory] = defaultdict(
+    {
+        "add": add_factory,
+        "link": link_factory,
+        "find": find_factory,
+        "organize": organize_factory,
+        "archive": archive_factory
+    },
+    MissingCommandFactory
+)
+
+
+class Application:
+    def __init__(self, args: Mapping):
+        self.args = args
+
+    def run(self):
+        command = self.__get_command()
+        result: CommandResult = command.run()
+        result.output()
+
+    def __get_command(self) -> Command:
+        factory = self.__get_factory()
+        argv = self.__get_subcommand_args()
+        return self.__create_command(factory, argv)
+
+    def __get_factory(self):
+        # good to remember that args is a list of arguments
+        # here we join together a list of the original command & args without "top-level" options
+        command = self.args.get("<command>")
+        return command_factories[command]
+
+    def __get_subcommand_args(self) -> Mapping:
+        return [self.args["<command>"]] + self.args["<args>"]
+
+    def __create_command(self, factory: CommandFactory, argv: Mapping) -> Command:
+        clutch_client = clutch_factory(self.args)
+        client = TransmissionApi(clutch_client)
+        try:
+            return factory(argv, client)
+        except TypeError:
+            return factory(argv)
 
 
 def main():
     args = docopt(__doc__, options_first=True)
-    command: Command = command_factory(args)
-    result: CommandResult = command.run()
-    result.output()
+    application = Application(args)
+    application.run()
+
