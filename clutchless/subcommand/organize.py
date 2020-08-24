@@ -34,6 +34,7 @@ class HostnameFormatter:
 
 class FolderNameGrouper:
     """Takes transmission client, queries for torrents and compiles a dict: formatted hostname -> announce urls"""
+
     def __init__(self, client: TransmissionApi):
         self.client = client
 
@@ -68,6 +69,7 @@ class FolderNameChooser:
 
     Takes overrides in form announce_url:folder_name
     """
+
     def __init__(self, client: TransmissionApi, overrides: Mapping[int, str] = None):
         self.client = client
         if not overrides:
@@ -97,7 +99,9 @@ class FolderNameChooser:
         """Returns map: urls to folder names"""
         result: MutableMapping[str, str] = {}
         grouper = FolderNameGrouper(self.client)
-        ordered_folder_map: Sequence[FolderNameUrls] = grouper.get_ordered_folder_name_to_announce_urls()
+        ordered_folder_map: Sequence[
+            FolderNameUrls
+        ] = grouper.get_ordered_folder_name_to_announce_urls()
         for (index, entry) in enumerate(ordered_folder_map):
             for url in entry.announce_urls:
                 try:
@@ -150,9 +154,13 @@ class OrganizeCommand(Command):
 
     def __organize(self) -> Sequence[CommandResultAccumulator]:
         accumulators: MutableSequence[CommandResultAccumulator] = []
-        announce_url_to_folder_name: Mapping[str, str] = self.__get_announce_url_to_folder_name()
+        announce_url_to_folder_name: Mapping[
+            str, str
+        ] = self.__get_announce_url_to_folder_name()
         for (torrent_id, announce_urls) in self.client.get_torrent_trackers():
-            folder_name = self.__get_folder_name(announce_urls, announce_url_to_folder_name)
+            folder_name = self.__get_folder_name(
+                announce_urls, announce_url_to_folder_name
+            )
             try:
                 new_path = self.__get_new_torrent_path(folder_name)
                 self.__move(torrent_id, new_path)
@@ -208,5 +216,7 @@ class ListOrganizeCommand(Command):
         self.client = client
 
     def run(self) -> ListOrganizeCommandResult:
-        hostname_to_trackers = FolderNameGrouper(self.client).get_ordered_folder_name_to_announce_urls()
+        hostname_to_trackers = FolderNameGrouper(
+            self.client
+        ).get_ordered_folder_name_to_announce_urls()
         return ListOrganizeCommandResult(hostname_to_trackers)

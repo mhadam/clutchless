@@ -21,22 +21,29 @@ See 'clutchless help <command>' for more information on a specific command.
 """
 from collections import defaultdict
 from pathlib import Path
-from typing import Set, Mapping
+from typing import Set, Mapping, Sequence
 
 from docopt import docopt
 
 from clutchless.command import Command, CommandResult, CommandFactory
 from clutchless.parse.add import parse_add_flags, parse_add_arguments
 from clutchless.parse.find import FindArgs
-from clutchless.parse.shared import parse_data_dirs
+from clutchless.parse.shared import (
+    parse_data_dirs,
+    convert_to_paths,
+    find_torrent_files,
+)
 from clutchless.subcommand.add import AddCommand
 from clutchless.subcommand.archive import ArchiveCommand
 from clutchless.subcommand.find import FindCommand
 from clutchless.subcommand.link import LinkCommand, DryRunLinkCommand, ListLinkCommand
 from clutchless.subcommand.organize import (
-    ListOrganizeCommand, OrganizeCommand,
+    ListOrganizeCommand,
+    OrganizeCommand,
 )
 from clutchless.subcommand.other import MissingCommand
+from clutchless.subcommand.prune.client import PruneClientCommand
+from clutchless.subcommand.prune.folder import PruneFolderCommand
 from clutchless.transmission import TransmissionApi, clutch_factory
 
 
@@ -106,30 +113,39 @@ def archive_factory(argv: Mapping, client: TransmissionApi) -> Command:
     return MissingCommand()
 
 
+def prune_folder_factory(argv: Mapping, client: TransmissionApi) -> Command:
+    from clutchless.parse.prune import folder as prune_folder_command
+
+    prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
+    dry_run: bool = prune_args.get("--dry-run")
+    raw_folders: Sequence[str] = prune_args.get("<folders>")
+    folder_paths: Set[Path] = convert_to_paths(raw_folders)
+    torrent_files = find_torrent_files(folder_paths)
+    if dry_run:
+        return DryRunPruneTorrentCommand(torrent_files)
+    return PruneFolderCommand(torrent_files, client)
+
+
+def prune_client_factory(argv: Mapping, client: TransmissionApi) -> Command:
+    from clutchless.parse.prune import client as prune_client_command
+
+    prune_args = docopt(doc=prune_client_command.__doc__, argv=argv)
+    dry_run: bool = prune_args.get("--dry-run")
+    return PruneClientCommand()
+
+
 def prune_factory(argv: Mapping) -> Command:
     from clutchless.parse.prune import main as prune_command
 
     args = docopt(doc=prune_command.__doc__, options_first=True, argv=argv)
     prune_subcommand = args.get("<command>")
     if prune_subcommand == "folder":
-        from clutchless.parse.prune import folder as prune_folder_command
-
-        prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
-        dry_run: bool = prune_args.get("--dry-run")
-        folders: Sequence[str] = prune_args.get("<folders>")
-        pruned_folders: Set[Path] = prune_folders(folders, dry_run)
-        if dry_run:
-            print("The following are dry run results.")
-        print_pruned_files(pruned_folders)
+        return prune_folder_factory(argv)
     elif prune_subcommand == "client":
-        from clutchless.parse.prune import client as prune_client_command
-
-        prune_args = docopt(doc=prune_client_command.__doc__, argv=argv)
-        dry_run: bool = prune_args.get("--dry-run")
-        result: PrunedResult = prune_client(dry_run)
-        print_pruned(result, dry_run)
+        return prune_client_factory(argv)
     else:
-        print("Invalid prune subcommand: requires <folder|client>")
+        # print("Invalid prune subcommand: requires <folder|client>")
+        return MissingCommand()
 
 
 class MissingCommandFactory(CommandFactory):
@@ -143,9 +159,9 @@ command_factories: Mapping[str, CommandFactory] = defaultdict(
         "link": link_factory,
         "find": find_factory,
         "organize": organize_factory,
-        "archive": archive_factory
+        "archive": archive_factory,
     },
-    MissingCommandFactory
+    MissingCommandFactory,
 )
 
 
@@ -185,4 +201,3 @@ def main():
     args = docopt(__doc__, options_first=True)
     application = Application(args)
     application.run()
-

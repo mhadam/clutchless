@@ -1,40 +1,20 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Set, Mapping
+from typing import Mapping
 
 from colorama import init, deinit, Fore
 from torrentool.torrent import Torrent
 
 from clutchless.console import Command, CommandResult
 from clutchless.parse.find import FindArgs
-from clutchless.search import TorrentSorter, TorrentRegister, TorrentTuple
 
 
 @dataclass
 class SearchResult:
     """Hash to found location"""
+
     matches: Mapping[str, Path]
     misses: Mapping[str, Path]
-
-
-class TorrentFinder:
-    def __init__(self, data_dirs: Set[Path], torrent_files: Set[Path]):
-        self.data_dirs = data_dirs
-        self.register: TorrentRegister = TorrentRegister(torrent_files)
-        self.sorter: TorrentSorter = TorrentSorter(self.register.get_selected_map())
-
-    def find(self) -> SearchResult:
-        matches: Mapping[str, Path] = self.sorter.find_matches(self.data_dirs)
-        all_hashes = self.register.keys()
-        missed_keys: Set[str] = all_hashes - matches.keys()
-        missed_torrents = {k: v for k, v in self.register.items() if k in missed_keys}
-        return SearchResult(matches, missed_torrents)
-
-    def get_selected_path(self, torrent_hash: str) -> Path:
-        return self.register.get_selected(torrent_hash).path
-
-    def get_selected(self, torrent_hash: str) -> TorrentTuple:
-        return self.register.get_selected(torrent_hash)
 
 
 class FindResult(CommandResult):

@@ -1,50 +1,53 @@
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, PropertyMock
+import pathlib
+from typing import Mapping
+
+from pytest_mock import MockerFixture
+
+from clutchless.search import verify_callback
+from clutchless.torrent import TorrentFile
+from clutchless.transmission import PartialTorrent
+from clutchless.verify import TorrentVerifier, HashCalculator
 
 
-def test_parse_directories():
-    path = "dir1/dir2/file.mkv"
+def test_verify(mocker: MockerFixture):
+    mocker.patch.object(pathlib.Path, "exists", lambda self: False)
 
-    result = parse_directories(path)
+    test_hash = "dac9630aec642a428cd73f4be0a03569"
+    partial_torrents: Mapping[str, PartialTorrent] = {
+        test_hash: PartialTorrent("some_name", {"books/book1.txt"})
+    }
 
-    assert len(result) == 2
-    assert result == {"dir1", "dir2"}
-
-
-def test_no_directories_from_a_file():
-    path = "a_file.mkv"
-
-    result = parse_directories(path)
-
-    assert not bool(result)
-
-
-def test_matching_file():
-    Path.is_file = Mock(return_value=True)
-    match_path = Path("/torrents/little_women/little_women.txt")
-    torrent_file_path = Path("little_women/little_women.txt")
-
-    result = match(match_path, torrent_file_path)
-
-    assert result
-
-
-def test_matching_dir():
-    Path.is_file = Mock(return_value=False)
-    Path.is_dir = Mock(return_value=True)
-    match_path = Path("/app/resources/data/nested_example/another/little_women")
-    torrent_file_path = Path("little_women/little_women.txt")
-
-    result = match(match_path, torrent_file_path)
+    torrent_file = TorrentFile(pathlib.Path("some_location"))
+    torrent_file._properties = {
+        "files": ["books/book1.txt", "books/book2.txt"],
+        "info": {"pieces": bytes(test_hash, "utf-8")},
+    }
+    path = pathlib.Path("something")
+    hash_calculator = mocker.MagicMock(HashCalculator)
+    hash_calculator.calculate.return_value = b"dac9630aec642a428cd73f4be0a03569"
+    verifier = TorrentVerifier(partial_torrents, hash_calculator)
+    result = verify_callback(verifier, torrent_file, path)
 
     assert result
 
 
-def test_matching_single_file():
-    Path.is_file = Mock(return_value=True)
-    match_path = Path("/app/resources/data/ion.txt")
-    torrent_file_path = Path("ion.txt")
+def test_verify_mismatch(mocker: MockerFixture):
+    mocker.patch.object(pathlib.Path, "exists", lambda self: False)
 
-    result = match(match_path, torrent_file_path)
+    test_hash = "nope!"
+    partial_torrents: Mapping[str, PartialTorrent] = {
+        test_hash: PartialTorrent("some_name", {"books/book1.txt"})
+    }
 
-    assert result
+    torrent_file = TorrentFile(pathlib.Path("some_location"))
+    torrent_file._properties = {
+        "files": ["books/book1.txt", "books/book2.txt"],
+        "info": {"pieces": bytes(test_hash, "utf-8")},
+    }
+    path = pathlib.Path("something")
+    hash_calculator = mocker.MagicMock(HashCalculator)
+    hash_calculator.calculate.return_value = b"dac9630aec642a428cd73f4be0a03569"
+    verifier = TorrentVerifier(partial_torrents, hash_calculator)
+    result = verify_callback(verifier, torrent_file, path)
+
+    assert not result

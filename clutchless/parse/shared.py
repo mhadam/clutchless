@@ -4,11 +4,14 @@ from typing import Set, Sequence
 from clutchless.search import get_torrent_files
 
 
-def parse_torrent_files(paths: Sequence[str]) -> Set[Path]:
-    torrent_paths = {Path(torrent) for torrent in paths}
+def convert_to_paths(raw_paths: Sequence[str]) -> Set[Path]:
+    return {Path(raw_path).resolve(strict=False) for raw_path in raw_paths}
+
+
+def find_torrent_files(paths: Set[Path]) -> Set[Path]:
     torrent_dirs = set()
     torrent_files = set()
-    for path in torrent_paths:
+    for path in paths:
         if not path.exists():
             raise ValueError("Supplied torrent path doesn't exist")
         elif path.is_dir():

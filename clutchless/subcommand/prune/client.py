@@ -4,6 +4,8 @@ from typing import Sequence, MutableSequence
 from clutch.network.rpc.message import Response
 from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
 
+from clutchless.command import Command, CommandResult
+
 
 @dataclass
 class PrunedTorrent:
@@ -17,6 +19,14 @@ class PrunedTorrent:
 class PrunedResult:
     failures: Sequence[PrunedTorrent] = field(default_factory=list)
     successes: Sequence[PrunedTorrent] = field(default_factory=list)
+
+
+class PruneClientCommand(Command):
+    def __init__(self):
+        pass
+
+    def run(self) -> CommandResult:
+        pass
 
 
 def prune_client(dry_run: bool) -> PrunedResult:

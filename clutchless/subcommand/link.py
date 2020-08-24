@@ -4,16 +4,19 @@ from typing import Set, Mapping, MutableSequence, MutableMapping, Sequence
 
 from clutch import Client
 from clutch.network.rpc.message import Response
-from clutch.schema.user.response.torrent.accessor import (
-    TorrentAccessorObject,
-)
+from clutch.schema.user.response.torrent.accessor import TorrentAccessorObject
 from torrentool.torrent import Torrent
 
 from clutchless.command import CommandResultAccumulator, CommandResult, Command
 from clutchless.search import TorrentTuple
 from clutchless.subcommand.find import TorrentFinder, SearchResult
-from clutchless.subcommand.other import ClutchLink, ClutchError, MoveTorrent, VerifyTorrent
-from clutchless.transmission import IncompleteTorrents, TransmissionApi
+from clutchless.subcommand.other import (
+    ClutchLink,
+    ClutchError,
+    MoveTorrent,
+    VerifyTorrent,
+)
+from clutchless.transmission import TransmissionApi
 
 
 @dataclass
@@ -85,7 +88,9 @@ class LinkTorrent:
 
 
 class LinkCommand(Command):
-    def __init__(self, data_dirs: Set[Path], torrent_files: Set[Path], client: TransmissionApi):
+    def __init__(
+        self, data_dirs: Set[Path], torrent_files: Set[Path], client: TransmissionApi
+    ):
         self.client = client
         self.finder = TorrentFinder(data_dirs, torrent_files)
         self.search_result: SearchResult = self.finder.find()
@@ -118,9 +123,7 @@ class LinkCommand(Command):
             torrent_tuple: TorrentTuple = self.finder.register.get_selected(
                 matching_hash
             )
-            result[torrent_tuple.torrent] = self.search_result.matches[
-                matching_hash
-            ]
+            result[torrent_tuple.torrent] = self.search_result.matches[matching_hash]
         return result
 
     def __get_matching_hashes(self) -> Set[str]:
@@ -146,7 +149,7 @@ class LinkListCommandResult(CommandResult):
     def output(self):
         if len(self.incompletes) > 0:
             for (hash_string, torrent) in self.incompletes.items():
-                print(f'{torrent.name}: {torrent.download_dir}')
+                print(f"{torrent.name}: {torrent.download_dir}")
 
 
 class ListLinkCommand(Command):

@@ -1,31 +1,35 @@
 import os
 from pathlib import Path
-from typing import Sequence, Set
+from typing import Set
 
-from clutch.network.rpc.message import Response
-from clutch.schema.user.response.torrent.accessor import TorrentAccessorResponse
-
-from clutchless.transmission import client
-from clutchless.parse.shared import parse_torrent_files
-from clutchless.search import TorrentSearch
+from clutchless.command import Command, CommandResult
+from clutchless.transmission import TransmissionApi
 
 
-def prune_folders(folders: Sequence[str], dry_run: bool) -> Set[Path]:
-    response: Response[TorrentAccessorResponse] = client.torrent.accessor(
-        fields=["id", "hash_string"]
-    )
-    torrent_files: Set[Path] = parse_torrent_files(folders)
-    torrents = TorrentSearch()
-    torrents += torrent_files
-    hash_strings = {torrent.hash_string for torrent in response.arguments.torrents}
-    removed: Set[Path] = set()
-    for hash_string in hash_strings:
-        try:
-            paths = torrents.locations[hash_string]
-            for path in paths:
-                if not dry_run:
-                    os.remove(path)
-                removed.add(path)
-        except KeyError:
-            pass
-    return removed
+class DryRunPruneFolderCommand(Command):
+    pass
+
+
+class PruneFolderCommand(Command):
+    def __init__(self, torrent_files: Set[Path], client: TransmissionApi):
+        self.client = client
+        self.torrent_files = torrent_files
+
+    def run(self) -> CommandResult:
+        pass
+
+    def __get_(self):
+        hashes_by_id = self.client.get_torrent_hashes_by_id()
+
+    def __prune_torrents(self):
+        removed: Set[Path] = set()
+        for hash_string in hash_strings:
+            try:
+                paths = torrents.locations[hash_string]
+                for path in paths:
+                    if not dry_run:
+                        os.remove(path)
+                    removed.add(path)
+            except KeyError:
+                pass
+        return removed

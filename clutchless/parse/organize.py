@@ -81,6 +81,7 @@ class FolderAssignmentParser:
 
 class TrackerSpec(UserDict, MutableMapping[int, str]):
     """{index : folder name}"""
+
     pass
 
 
