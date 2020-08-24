@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Set
 
-from clutchless.parse.shared import parse_torrent_files, parse_data_dirs
+from clutchless.parse.shared import parse_data_dirs
 
 
 @dataclass

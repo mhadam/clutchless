@@ -6,7 +6,7 @@ from colorama import init, deinit, Fore
 from torrentool.torrent import Torrent
 
 from clutchless.console import Command, CommandResult
-from clutchless.parse.find import FindArgs
+from clutchless.search import TorrentDataMatcher
 
 
 @dataclass
@@ -18,9 +18,8 @@ class SearchResult:
 
 
 class FindResult(CommandResult):
-    def __init__(self, result: SearchResult, finder: TorrentFinder):
+    def __init__(self, result: SearchResult):
         self.result: SearchResult = result
-        self.finder: TorrentFinder = finder
 
     @staticmethod
     def print_found(torrent: Torrent, path: Path):
@@ -50,13 +49,12 @@ class FindResult(CommandResult):
 
 
 class FindCommand(Command):
-    def __init__(self, find_args: FindArgs):
-        self.data_dirs = find_args.data_dirs
-        self.torrent_files = find_args.torrent_files
+    def __init__(self, data_matcher: TorrentDataMatcher):
         # TODO: How should this be simplified, does torrent register belong in sorter? Do we need *one* register shared?
-        self.register: TorrentRegister = TorrentRegister(self.torrent_files)
-        self.sorter: TorrentSorter = TorrentSorter(self.register.get_selected_map())
-        self.finder = TorrentFinder(self.data_dirs, self.torrent_files)
+        # self.register: TorrentRegister = TorrentRegister(self.torrent_files)
+        # self.sorter: TorrentSorter = TorrentSorter(self.register.get_selected_map())
+        # self.finder = TorrentFinder(self.data_dirs, self.torrent_files)
+        self.data_matcher = data_matcher
 
     def run(self) -> FindResult:
         return FindResult(self.finder.find(), self.finder)

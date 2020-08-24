@@ -84,20 +84,20 @@ class TorrentDataMatcher:
     async def __find_matches(self, directory: Path) -> Mapping[str, Path]:
         found: MutableMapping[str, Path] = {}
         for path, directories, files in os.walk(directory):
-            search_result = await self.__search(path, files, self.name_store)
+            search_result = await self.__search(path, files)
             found.update(search_result)
-            search_result = await self.__search(path, directories, self.name_store)
+            search_result = await self.__search(path, directories)
             found.update(search_result)
         return found
 
     async def __search(
-        self, path: Path, items: Iterable[str], name_store: TorrentNameStore
+        self, path: Path, items: Iterable[str]
     ) -> Mapping[str, Path]:
         interrupt_event = Event()
         loop = asyncio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             for item in items:
-                for torrent_hash in name_store.get_torrent_files(item):
+                for torrent_hash in self.name_store.get_torrent_files(item):
                     torrent_file = self.file_store.get_torrent(torrent_hash)
                     verifier = self.__get_torrent_verifier(interrupt_event)
                     is_verified = await loop.run_in_executor(

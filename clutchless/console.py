@@ -134,15 +134,15 @@ def prune_client_factory(argv: Mapping, client: TransmissionApi) -> Command:
     return PruneClientCommand()
 
 
-def prune_factory(argv: Mapping) -> Command:
+def prune_factory(argv: Mapping, client: TransmissionApi) -> Command:
     from clutchless.parse.prune import main as prune_command
 
     args = docopt(doc=prune_command.__doc__, options_first=True, argv=argv)
     prune_subcommand = args.get("<command>")
     if prune_subcommand == "folder":
-        return prune_folder_factory(argv)
+        return prune_folder_factory(argv, client)
     elif prune_subcommand == "client":
-        return prune_client_factory(argv)
+        return prune_client_factory(argv, client)
     else:
         # print("Invalid prune subcommand: requires <folder|client>")
         return MissingCommand()
