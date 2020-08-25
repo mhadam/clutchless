@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, Set
 
 from colorama import init, deinit, Fore
 from torrentool.torrent import Torrent
@@ -49,12 +49,11 @@ class FindResult(CommandResult):
 
 
 class FindCommand(Command):
-    def __init__(self, data_matcher: TorrentDataMatcher):
-        # TODO: How should this be simplified, does torrent register belong in sorter? Do we need *one* register shared?
-        # self.register: TorrentRegister = TorrentRegister(self.torrent_files)
-        # self.sorter: TorrentSorter = TorrentSorter(self.register.get_selected_map())
-        # self.finder = TorrentFinder(self.data_dirs, self.torrent_files)
+    def __init__(self, data_matcher: TorrentDataMatcher, data_dirs: Set[Path]):
         self.data_matcher = data_matcher
+        self.data_dirs = data_dirs
 
     def run(self) -> FindResult:
+        self.data_matcher.find_matches(self.data_dirs)
+        # todo: fix this
         return FindResult(self.finder.find(), self.finder)

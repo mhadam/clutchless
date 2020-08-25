@@ -10,20 +10,37 @@ Options:
     -d <data> ...  Folder(s) to search for data that belongs to the specified torrent files.
 """
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Set
 
-from clutchless.parse.shared import parse_data_dirs
+from clutchless.parse.shared import DataDirectoryParser, TorrentFileCrawler
+from clutchless.search import TorrentDataMatcher, TorrentNameStore, TorrentFileStore
+from clutchless.torrent import TorrentFile
+from clutchless.transmission import TransmissionApi
 
 
-@dataclass
 class FindArgs:
-    torrent_files: Set[Path]
-    data_dirs: Set[Path]
+    def __init__(self):
+        pass
 
     @classmethod
-    def parse_find(cls, args: Mapping) -> "FindArgs":
-        torrent_files = parse_torrent_files(args["<torrents>"])
-        data_dirs = parse_data_dirs(args["-d"])
-        return cls(torrent_files, data_dirs)
+    def get_matcher(cls, args: Mapping, client: TransmissionApi) -> TorrentDataMatcher:
+        name_store = TorrentNameStore()
+        file_store = TorrentFileStore()
+        for path in cls.get_torrent_files(args):
+            torrent_file = TorrentFile.from_path(path)
+            name_store.add(torrent_file)
+            file_store.add(torrent_file)
+        return TorrentDataMatcher(name_store, file_store, client)
+
+    @classmethod
+    def get_data_dirs(cls, args: Mapping) -> Set[Path]:
+        raw_data_directories = args["-d"]
+        parser = DataDirectoryParser()
+        return parser.parse(raw_data_directories)
+
+    @classmethod
+    def get_torrent_files(cls, args: Mapping) -> Set[Path]:
+        raw_torrents_paths = args["<torrents>"]
+        crawler = TorrentFileCrawler()
+        return crawler.crawl(raw_torrents_paths)

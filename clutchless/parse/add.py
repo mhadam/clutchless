@@ -17,13 +17,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Set
 
-from clutchless.parse.shared import parse_torrent_files, parse_data_dirs
+from clutchless.parse.shared import parse_data_dirs
 
 
 @dataclass
 class AddArgs:
     torrent_files: Set[Path]
     data_dirs: Set[Path]
+
+    @staticmethod
+    def parse_add_arguments(args: Mapping) -> 'AddArgs':
+        torrent_files = parse_torrent_files(args["<torrents>"])
+        data_dirs = parse_data_dirs(args.get("-d"))
+        return AddArgs(torrent_files, data_dirs)
 
 
 @dataclass
@@ -32,16 +38,10 @@ class AddFlags:
     dry_run: bool
     delete_added: bool
 
-
-def parse_add_flags(args: Mapping) -> AddFlags:
-    return AddFlags(
-        force=args.get("--force") or len(args.get("<data>")) == 0,
-        dry_run=args.get("--dry-run"),
-        delete_added=args.get("--delete"),
-    )
-
-
-def parse_add_arguments(args: Mapping) -> AddArgs:
-    torrent_files = parse_torrent_files(args["<torrents>"])
-    data_dirs = parse_data_dirs(args.get("-d"))
-    return AddArgs(torrent_files, data_dirs)
+    @staticmethod
+    def parse(args: Mapping) -> 'AddFlags':
+        return AddFlags(
+            force=args.get("--force") or len(args.get("<data>")) == 0,
+            dry_run=args.get("--dry-run"),
+            delete_added=args.get("--delete"),
+        )

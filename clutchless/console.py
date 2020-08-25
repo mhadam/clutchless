@@ -26,13 +26,7 @@ from typing import Set, Mapping, Sequence
 from docopt import docopt
 
 from clutchless.command import Command, CommandResult, CommandFactory
-from clutchless.parse.add import parse_add_flags, parse_add_arguments
 from clutchless.parse.find import FindArgs
-from clutchless.parse.shared import (
-    parse_data_dirs,
-    convert_to_paths,
-    find_torrent_files,
-)
 from clutchless.subcommand.add import AddCommand
 from clutchless.subcommand.archive import ArchiveCommand
 from clutchless.subcommand.find import FindCommand
@@ -75,14 +69,14 @@ def link_factory(argv: Mapping, client: TransmissionApi) -> Command:
     return LinkCommand(data_dirs, torrent_files, client)
 
 
-def find_factory(argv: Mapping) -> Command:
+def find_factory(argv: Mapping, client: TransmissionApi) -> Command:
     # parse arguments
     from clutchless.parse import find as find_command
 
-    find_args: FindArgs = FindArgs.parse_find(
-        docopt(doc=find_command.__doc__, argv=argv)
-    )
-    return FindCommand(find_args)
+    args = docopt(doc=find_command.__doc__, argv=argv)
+    matcher = FindArgs.get_matcher(args, client)
+    data_dirs = FindArgs.get_data_dirs(args)
+    return FindCommand(matcher, data_dirs)
 
 
 def organize_factory(argv: Mapping, client: TransmissionApi) -> Command:

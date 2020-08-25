@@ -18,9 +18,8 @@ class TorrentFileStore:
             default_factory=set
         )
 
-    def add(self, path: Path):
+    def add(self, torrent_file: TorrentFile):
         """Takes a known torrent path, and stores it for later retrieval (stored with Torrent object)."""
-        torrent_file = TorrentFile.from_path(path)
         hash_string = torrent_file.hash_string
         if hash_string in self.torrents:
             self.duplicates[hash_string].add(torrent_file)
@@ -115,13 +114,3 @@ class TorrentDataMatcher:
 
 def verify_callback(verifier: TorrentVerifier, torrent_file: TorrentFile, path: Path):
     return verifier.verify(torrent_file, path)
-
-
-def get_torrent_files(torrent_dir: Path) -> Set[Path]:
-    result: Set[Path] = set()
-    for root, directories, files in os.walk(torrent_dir.resolve(strict=True)):
-        for file in files:
-            file_path = Path(root, file)
-            if file_path.suffix == ".torrent":
-                result.add(file_path)
-    return result
