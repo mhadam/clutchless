@@ -8,8 +8,7 @@ from clutch.schema.user.response.torrent.accessor import TorrentAccessorObject
 from torrentool.torrent import Torrent
 
 from clutchless.command import CommandResultAccumulator, CommandResult, Command
-from clutchless.search import TorrentTuple
-from clutchless.subcommand.find import TorrentFinder, SearchResult
+from clutchless.subcommand.find import SearchResult
 from clutchless.subcommand.other import (
     ClutchLink,
     ClutchError,
@@ -92,7 +91,7 @@ class LinkCommand(Command):
         self, data_dirs: Set[Path], torrent_files: Set[Path], client: TransmissionApi
     ):
         self.client = client
-        self.finder = TorrentFinder(data_dirs, torrent_files)
+        # self.finder = TorrentFinder(data_dirs, torrent_files)
         self.search_result: SearchResult = self.finder.find()
 
     def __get_incomplete_hashes(self) -> Set[str]:
@@ -120,9 +119,9 @@ class LinkCommand(Command):
     def __get_matches(self) -> Mapping[Torrent, Path]:
         result: MutableMapping[Torrent, Path] = {}
         for matching_hash in self.__get_matching_hashes():
-            torrent_tuple: TorrentTuple = self.finder.register.get_selected(
-                matching_hash
-            )
+            # torrent_tuple: TorrentTuple = self.finder.register.get_selected(
+            #     matching_hash
+            # )
             result[torrent_tuple.torrent] = self.search_result.matches[matching_hash]
         return result
 

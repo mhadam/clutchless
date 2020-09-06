@@ -1,7 +1,7 @@
 """ Locate data that belongs to torrent files.
 
 Usage:
-    clutchless find <torrents> ... (-d <data> ...)
+    clutchless find (<torrents> ...) (-d <data> ...)
 
 Arguments:
     <torrents> ...  Filepath of torrent files or directories to search for torrent files.
@@ -14,33 +14,34 @@ from pathlib import Path
 from typing import Mapping, Set
 
 from clutchless.parse.shared import DataDirectoryParser, TorrentFileCrawler
-from clutchless.search import TorrentDataMatcher, TorrentNameStore, TorrentFileStore
-from clutchless.torrent import TorrentFile
+from clutchless.search import VerifyingTorrentSearcher, NameMatchingTorrentSearcher
+from clutchless.torrent import MetainfoFile
 from clutchless.transmission import TransmissionApi
 
 
 class FindArgs:
-    def __init__(self):
-        pass
+    def __init__(self, args: Mapping, client: TransmissionApi):
+        self.args = args
+        self.client = client
 
-    @classmethod
-    def get_matcher(cls, args: Mapping, client: TransmissionApi) -> TorrentDataMatcher:
-        name_store = TorrentNameStore()
-        file_store = TorrentFileStore()
-        for path in cls.get_torrent_files(args):
-            torrent_file = TorrentFile.from_path(path)
-            name_store.add(torrent_file)
-            file_store.add(torrent_file)
-        return TorrentDataMatcher(name_store, file_store, client)
+    def get_verifying_searcher(self) -> VerifyingTorrentSearcher:
+        return TorrentSearcher(self.client)
 
-    @classmethod
-    def get_data_dirs(cls, args: Mapping) -> Set[Path]:
-        raw_data_directories = args["-d"]
+    def get_name_matching_searcher(self) -> NameMatchingTorrentSearcher:
+        return NameMatchingTorrentSearcher(self.client)
+
+    def get_data_dirs(self) -> Set[Path]:
+        raw_data_directories = self.args["-d"]
         parser = DataDirectoryParser()
         return parser.parse(raw_data_directories)
 
-    @classmethod
-    def get_torrent_files(cls, args: Mapping) -> Set[Path]:
-        raw_torrents_paths = args["<torrents>"]
+    def get_torrent_files_paths(self) -> Set[Path]:
+        raw_torrents_paths = self.args["<torrents>"]
         crawler = TorrentFileCrawler()
         return crawler.crawl(raw_torrents_paths)
+
+    def get_torrent_files(self) -> Set[MetainfoFile]:
+        torrent_file_paths = self.get_torrent_files_paths()
+        return {
+            MetainfoFile.from_path(torrent_file) for torrent_file in torrent_file_paths
+        }

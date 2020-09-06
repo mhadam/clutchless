@@ -4,7 +4,7 @@ from pathlib import Path
 from threading import Event
 from typing import Optional, Sequence, Mapping
 
-from clutchless.torrent import TorrentFile
+from clutchless.torrent import MetainfoFile
 
 
 # todo: refactor with alternate constructor
@@ -49,24 +49,18 @@ class FilesStream(RawIOBase):
         return len(result)
 
 
-class CancelledError(Exception):
-    pass
-
-
 class HashCalculator:
-    def __init__(self, interrupt_event: Event):
-        self.interrupt_event = interrupt_event
+    def __init__(self):
+        pass
 
-    def calculate(self, torrent: TorrentFile, path: Path) -> bytes:
+    def calculate(self, torrent: MetainfoFile, path: Path) -> bytes:
         result = b""
         piece_length = torrent.info["piece length"]
         reader = BufferedReader(
-            FilesStream([Path(path, file.name) for file in torrent.files])
+            FilesStream([Path(path, file.path) for file in torrent.files])
         )
         read: bytes = reader.read(piece_length)
         while read != b"":
-            if self.interrupt_event.is_set():
-                raise CancelledError()
             result += sha1(read).digest()
             read = reader.read(piece_length)
         return result
@@ -81,7 +75,7 @@ class TorrentVerifier:
         self.partial_torrents = partial_torrents
         self.hash_calculator = hash_calculator
 
-    def verify(self, torrent: TorrentFile, path: Path) -> bool:
+    def verify(self, torrent: MetainfoFile, path: Path) -> bool:
         try:
             hash_string = self.hash_calculator.calculate(torrent, path)
             pieces = torrent.info["pieces"]
@@ -94,5 +88,3 @@ class TorrentVerifier:
                 return partial_torrent.verify(torrent, path)
             except KeyError:
                 pass
-        except CancelledError:
-            return False

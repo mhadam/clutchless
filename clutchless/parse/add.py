@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Set
 
-from clutchless.parse.shared import parse_data_dirs
+from clutchless.parse.shared import TorrentFileCrawler, DataDirectoryParser
 
 
 @dataclass
@@ -26,9 +26,11 @@ class AddArgs:
     data_dirs: Set[Path]
 
     @staticmethod
-    def parse_add_arguments(args: Mapping) -> 'AddArgs':
-        torrent_files = parse_torrent_files(args["<torrents>"])
-        data_dirs = parse_data_dirs(args.get("-d"))
+    def parse(args: Mapping) -> "AddArgs":
+        crawler = TorrentFileCrawler()
+        torrent_files = crawler.crawl(args["<torrents>"])
+        parser = DataDirectoryParser()
+        data_dirs = parser.parse(args.get("-d"))
         return AddArgs(torrent_files, data_dirs)
 
 
@@ -39,7 +41,7 @@ class AddFlags:
     delete_added: bool
 
     @staticmethod
-    def parse(args: Mapping) -> 'AddFlags':
+    def parse(args: Mapping) -> "AddFlags":
         return AddFlags(
             force=args.get("--force") or len(args.get("<data>")) == 0,
             dry_run=args.get("--dry-run"),

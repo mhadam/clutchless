@@ -21,6 +21,16 @@ class MissingCommand(Command):
         return MissingCommandResult()
 
 
+class InvalidCommandResult(CommandResult):
+    def output(self):
+        print("Invalid command!")
+
+
+class InvalidCommand(Command):
+    def run(self) -> CommandResult:
+        return InvalidCommandResult()
+
+
 @dataclass
 class ClutchLink:  # rename to NewClutchDirectory???
     torrent_id: int

@@ -9,7 +9,7 @@ from clutch.schema.user.response.torrent.accessor import (
     TorrentAccessorObject,
 )
 
-from clutchless.torrent import TorrentFile
+from clutchless.torrent import MetainfoFile
 
 IdsArg = Union[int, Set[int]]
 
@@ -31,7 +31,7 @@ class PartialTorrent:
     def __is_wanted_file_missing(self, file: str, location: Path) -> bool:
         return file in self.wanted_files and not Path(location, file).exists()
 
-    def verify(self, torrent: TorrentFile, location: Path) -> bool:
+    def verify(self, torrent: MetainfoFile, location: Path) -> bool:
         return not any(
             [self.__is_wanted_file_missing(file, location) for file in torrent.files]
         )

@@ -16,10 +16,15 @@ class ArchiveCount:
 @dataclass
 class ArchiveResult(CommandResult):
     copied: MutableMapping[int, Path] = field(default_factory=dict)
-    already_exist: MutableMapping[int, Path] = field(default_factory=dict)
+    already_exist: MutableSequence["ArchiveAlreadyExists"] = field(default_factory=list)
 
     def output(self):
-        pass
+        for (torrent_id, path) in self.copied.items():
+            print(f"Copied {torrent_id} to {path}")
+        for event in self.already_exist:
+            print(
+                f"Already exists {event.torrent_id} at {event.copied_path} because {event.error}"
+            )
 
 
 @dataclass
@@ -35,9 +40,10 @@ class ArchiveCopied(CommandResultAccumulator):
 class ArchiveAlreadyExists(CommandResultAccumulator):
     torrent_id: int
     copied_path: Path
+    error: str
 
     def accumulate(self, result: ArchiveResult):
-        result.already_exist[self.torrent_id] = self.copied_path
+        result.already_exist.append(self)
 
 
 class CopyError(Exception):
@@ -63,8 +69,8 @@ class ArchiveCommand(Command):
             try:
                 self.__copy_torrent_file(torrent_file, new_path)
                 accumulators.append(ArchiveCopied(torrent_id, new_path))
-            except CopyError:
-                accumulators.append(ArchiveAlreadyExists(torrent_id, new_path))
+            except CopyError as e:
+                accumulators.append(ArchiveAlreadyExists(torrent_id, new_path, str(e)))
         return accumulators
 
     def __get_torrent_files_by_id(self) -> Mapping[int, Path]:
@@ -75,8 +81,8 @@ class ArchiveCommand(Command):
         return Path(self.archive_path, file_part)
 
     def __copy_torrent_file(self, torrent_file: Path, new_path: Path):
-        if torrent_file.exists():
-            raise CopyError(f"{torrent_file} already exists")
+        if new_path.exists():
+            raise CopyError(f"{new_path} already exists")
         copy(torrent_file, new_path)
 
     def __create_archive_path(self):

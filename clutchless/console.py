@@ -1,12 +1,12 @@
 """ A tool for working with torrents and their data in the Transmission BitTorrent client.
 
 Usage:
-    clutchless [options] <command> [<args> ...]
+    clutchless [options] [-v ...] <command> [<args> ...]
 
 Options:
     -a <address>, --address <address>   Address for Transmission (default is http://localhost:9091/transmission/rpc).
     -h, --help  Show this screen.
-    --version   Show version.
+    -v, --verbose   Verbose terminal output (multiple -v increase verbosity).
 
 The available clutchless commands are:
     add         Add torrents to Transmission (with or without data).
@@ -19,13 +19,21 @@ The available clutchless commands are:
 See 'clutchless help <command>' for more information on a specific command.
 
 """
+import logging
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Set, Mapping, Sequence
 
 from docopt import docopt
 
-from clutchless.command import Command, CommandResult, CommandFactory
+from clutchless.command import (
+    Command,
+    CommandResult,
+    CommandFactory,
+    CommandFactoryWithoutClient,
+)
+from clutchless.parse.add import AddArgs, AddFlags
 from clutchless.parse.find import FindArgs
 from clutchless.subcommand.add import AddCommand
 from clutchless.subcommand.archive import ArchiveCommand
@@ -35,25 +43,25 @@ from clutchless.subcommand.organize import (
     ListOrganizeCommand,
     OrganizeCommand,
 )
-from clutchless.subcommand.other import MissingCommand
+from clutchless.subcommand.other import MissingCommand, InvalidCommand
 from clutchless.subcommand.prune.client import PruneClientCommand
 from clutchless.subcommand.prune.folder import PruneFolderCommand
 from clutchless.transmission import TransmissionApi, clutch_factory
 
 
-def add_factory(argv: Mapping) -> Command:
+def add_factory(argv: Sequence[str]) -> Command:
     # parse arguments
     from clutchless.parse import add as add_command
 
     args = docopt(doc=add_command.__doc__, argv=argv)
-    add_args = parse_add_arguments(args)
-    add_flags = parse_add_flags(args)
+    add_args = AddArgs.parse(args)
+    add_flags = AddFlags.parse(args)
 
     # action
     return AddCommand(add_args, add_flags)
 
 
-def link_factory(argv: Mapping, client: TransmissionApi) -> Command:
+def link_factory(argv: Sequence[str], client: TransmissionApi) -> Command:
     # parse
     from clutchless.parse import link as link_command
 
@@ -69,17 +77,16 @@ def link_factory(argv: Mapping, client: TransmissionApi) -> Command:
     return LinkCommand(data_dirs, torrent_files, client)
 
 
-def find_factory(argv: Mapping, client: TransmissionApi) -> Command:
+def find_factory(argv: Sequence[str], client: TransmissionApi) -> Command:
     # parse arguments
     from clutchless.parse import find as find_command
 
     args = docopt(doc=find_command.__doc__, argv=argv)
-    matcher = FindArgs.get_matcher(args, client)
-    data_dirs = FindArgs.get_data_dirs(args)
-    return FindCommand(matcher, data_dirs)
+    find_args = FindArgs(args, client)
+    return FindCommand(find_args)
 
 
-def organize_factory(argv: Mapping, client: TransmissionApi) -> Command:
+def organize_factory(argv: Sequence[str], client: TransmissionApi) -> Command:
     # parse
     from clutchless.parse import organize as organize_command
 
@@ -96,18 +103,19 @@ def organize_factory(argv: Mapping, client: TransmissionApi) -> Command:
         return OrganizeCommand(raw_spec, new_path, client)
 
 
-def archive_factory(argv: Mapping, client: TransmissionApi) -> Command:
+def archive_factory(argv: Sequence[str], client: TransmissionApi) -> Command:
     # parse
     from clutchless.parse import archive as archive_command
 
     archive_args = docopt(doc=archive_command.__doc__, argv=argv)
     location = Path(archive_args.get("<location>"))
     if location:
+        print("returning archive command")
         return ArchiveCommand(location, client)
     return MissingCommand()
 
 
-def prune_folder_factory(argv: Mapping, client: TransmissionApi) -> Command:
+def prune_folder_factory(argv: Sequence[str], client: TransmissionApi) -> Command:
     from clutchless.parse.prune import folder as prune_folder_command
 
     prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
@@ -120,7 +128,7 @@ def prune_folder_factory(argv: Mapping, client: TransmissionApi) -> Command:
     return PruneFolderCommand(torrent_files, client)
 
 
-def prune_client_factory(argv: Mapping, client: TransmissionApi) -> Command:
+def prune_client_factory(argv: Sequence[str], client: TransmissionApi) -> Command:
     from clutchless.parse.prune import client as prune_client_command
 
     prune_args = docopt(doc=prune_client_command.__doc__, argv=argv)
@@ -128,7 +136,7 @@ def prune_client_factory(argv: Mapping, client: TransmissionApi) -> Command:
     return PruneClientCommand()
 
 
-def prune_factory(argv: Mapping, client: TransmissionApi) -> Command:
+def prune_factory(argv: Sequence[str], client: TransmissionApi) -> Command:
     from clutchless.parse.prune import main as prune_command
 
     args = docopt(doc=prune_command.__doc__, options_first=True, argv=argv)
@@ -142,12 +150,13 @@ def prune_factory(argv: Mapping, client: TransmissionApi) -> Command:
         return MissingCommand()
 
 
-class MissingCommandFactory(CommandFactory):
-    def __call__(self, *args, **kwargs):
-        return MissingCommand
+class InvalidCommandFactory(CommandFactoryWithoutClient):
+    def __call__(self, argv: Sequence[str]) -> Command:
+        return InvalidCommand()
 
 
 command_factories: Mapping[str, CommandFactory] = defaultdict(
+    lambda: InvalidCommandFactory(),
     {
         "add": add_factory,
         "link": link_factory,
@@ -155,7 +164,6 @@ command_factories: Mapping[str, CommandFactory] = defaultdict(
         "organize": organize_factory,
         "archive": archive_factory,
     },
-    MissingCommandFactory,
 )
 
 
@@ -164,11 +172,20 @@ class Application:
         self.args = args
 
     def run(self):
-        command = self.__get_command()
+        logging.basicConfig(level=logging.DEBUG)
+        clutch_client = clutch_factory(self.args)
+        client = TransmissionApi(clutch_client)
+        command = CommandCreator(self.args, client).get_command()
         result: CommandResult = command.run()
         result.output()
 
-    def __get_command(self) -> Command:
+
+class CommandCreator:
+    def __init__(self, args: Mapping, client: TransmissionApi):
+        self.args = args
+        self.client = client
+
+    def get_command(self) -> Command:
         factory = self.__get_factory()
         argv = self.__get_subcommand_args()
         return self.__create_command(factory, argv)
@@ -179,19 +196,40 @@ class Application:
         command = self.args.get("<command>")
         return command_factories[command]
 
-    def __get_subcommand_args(self) -> Mapping:
+    def __get_subcommand_args(self) -> Sequence[str]:
         return [self.args["<command>"]] + self.args["<args>"]
 
-    def __create_command(self, factory: CommandFactory, argv: Mapping) -> Command:
-        clutch_client = clutch_factory(self.args)
-        client = TransmissionApi(clutch_client)
+    def __create_command(self, factory: CommandFactory, argv: Sequence[str]) -> Command:
         try:
-            return factory(argv, client)
+            return factory(argv, self.client)
         except TypeError:
             return factory(argv)
 
 
+def parse_logging_level(args: Mapping) -> int:
+    return args.get("--verbose", 0)
+
+
+def setup_logging(verbosity):
+    base_loglevel = 30
+    verbosity = min(verbosity, 2)
+    loglevel = base_loglevel - (verbosity * 10)
+    logging.basicConfig(level=loglevel, format="%(message)s")
+
+
 def main():
-    args = docopt(__doc__, options_first=True)
-    application = Application(args)
-    application.run()
+    try:
+        args = docopt(__doc__, options_first=True)
+
+        verbosity = parse_logging_level(args)
+        setup_logging(verbosity)
+
+        application = Application(args)
+        application.run()
+    except Exception as e:
+        logging.error(str(e))
+        logging.debug("", exc_info=True)
+        try:
+            sys.exit(e.errno)
+        except AttributeError:
+            sys.exit(1)

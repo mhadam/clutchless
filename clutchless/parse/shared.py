@@ -25,7 +25,9 @@ class TorrentFileCrawler:
         if not path.exists():
             raise ValueError("Supplied torrent path doesn't exist")
 
-    def __handle_path(self, path: Path, torrent_dirs: Set[Path], torrent_files: Set[Path]):
+    def __handle_path(
+        self, path: Path, torrent_dirs: Set[Path], torrent_files: Set[Path]
+    ):
         self.__validate_path_exists(path)
         torrent_dirs.update(self.__get_torrent_dir(path))
         torrent_files.update(self.__get_torrent_file(path))
@@ -40,7 +42,9 @@ class TorrentFileCrawler:
             return {path}
         return set()
 
-    def __collect_files(self, torrent_dirs: Set[Path], torrent_files: Set[Path]) -> Set[Path]:
+    def __collect_files(
+        self, torrent_dirs: Set[Path], torrent_files: Set[Path]
+    ) -> Set[Path]:
         for directory in torrent_dirs:
             torrent_files.update(self.__get_torrent_files(directory))
         return torrent_files

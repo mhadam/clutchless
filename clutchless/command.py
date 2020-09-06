@@ -1,4 +1,4 @@
-from typing import Protocol, TypeVar, Mapping, Union
+from typing import Protocol, TypeVar, Mapping, Union, Sequence
 
 from clutchless.transmission import TransmissionApi
 
@@ -28,12 +28,12 @@ class Command(Protocol):
 
 
 class CommandFactoryWithoutClient(Protocol):
-    def __call__(self, argv: Mapping) -> Command:
+    def __call__(self, argv: Sequence[str]) -> Command:
         raise NotImplementedError
 
 
 class CommandFactoryWithClient(Protocol):
-    def __call__(self, argv: Mapping, client: TransmissionApi) -> Command:
+    def __call__(self, argv: Sequence[str], client: TransmissionApi) -> Command:
         raise NotImplementedError
 
 
