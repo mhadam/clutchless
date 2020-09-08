@@ -1,35 +1,78 @@
 import os
-from pathlib import Path
-from typing import Set
+from dataclasses import dataclass
+from typing import Set, Mapping
 
 from clutchless.command import Command, CommandResult
+from clutchless.torrent import MetainfoFile
 from clutchless.transmission import TransmissionApi
 
 
+@dataclass
+class DryRunPruneFolderCommandResult(CommandResult):
+    pruned: Set[MetainfoFile]
+
+    def output(self):
+        if len(self.pruned) > 0:
+            print('The following metainfo files would be removed:')
+            for file in self.pruned:
+                print(f'{file.name} at {file.path}')
+        else:
+            print('No files would be removed.')
+
+
+class MetainfoFileClientMatcher:
+    def __init__(self, client: TransmissionApi, metainfo_files: Set[MetainfoFile]):
+        self.client = client
+        self.metainfo_files = metainfo_files
+
+    def get_metainfo_files_by_id(
+        self,
+    ) -> Mapping[int, MetainfoFile]:
+        client_id_by_hash: Mapping[str, int] = self.client.get_torrent_ids_by_hash()
+        metainfo_files_by_hash = self.__get_metainfo_files_by_hash()
+        return {
+            client_id: metainfo_files_by_hash[metainfo_hash]
+            for (metainfo_hash, client_id) in client_id_by_hash.items()
+            if metainfo_hash in metainfo_files_by_hash
+        }
+
+    def __get_metainfo_files_by_hash(self) -> Mapping[str, MetainfoFile]:
+        return {file.hash_string: file for file in self.metainfo_files}
+
+
 class DryRunPruneFolderCommand(Command):
-    pass
+    def __init__(self, client: TransmissionApi, metainfo_files: Set[MetainfoFile]):
+        self.client = client
+        self.metainfo_files = metainfo_files
+
+    def run(self) -> DryRunPruneFolderCommandResult:
+        matcher = MetainfoFileClientMatcher(self.client, self.metainfo_files)
+        metainfo_files_by_id = matcher.get_metainfo_files_by_id()
+        pruned = set(metainfo_files_by_id.values())
+        return DryRunPruneFolderCommandResult(pruned)
+
+
+@dataclass
+class PruneFolderCommandResult(CommandResult):
+    pruned: Set[MetainfoFile]
+
+    def output(self):
+        pass
 
 
 class PruneFolderCommand(Command):
-    def __init__(self, torrent_files: Set[Path], client: TransmissionApi):
+    def __init__(self, client: TransmissionApi, metainfo_files: Set[MetainfoFile]):
         self.client = client
-        self.torrent_files = torrent_files
+        self.metainfo_files = metainfo_files
 
-    def run(self) -> CommandResult:
-        pass
+    def run(self) -> PruneFolderCommandResult:
+        matcher = MetainfoFileClientMatcher(self.client, self.metainfo_files)
+        metainfo_files_by_id = matcher.get_metainfo_files_by_id()
+        metainfo_files = set(metainfo_files_by_id.values())
+        self.__remove_torrents(metainfo_files)
+        return PruneFolderCommandResult(metainfo_files)
 
-    def __get_(self):
-        hashes_by_id = self.client.get_torrent_hashes_by_id()
-
-    def __prune_torrents(self):
-        removed: Set[Path] = set()
-        for hash_string in hash_strings:
-            try:
-                paths = torrents.locations[hash_string]
-                for path in paths:
-                    if not dry_run:
-                        os.remove(path)
-                    removed.add(path)
-            except KeyError:
-                pass
-        return removed
+    def __remove_torrents(self, metainfo_files: Set[MetainfoFile]):
+        paths = {file.path for file in metainfo_files}
+        for path in paths:
+            os.remove(path)

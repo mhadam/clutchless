@@ -1,4 +1,4 @@
-""" Remove .torrent files from folders, but only if they're associated with torrents registered in Transmission.
+""" Remove metainfo files in folders, but only if they're associated with torrents registered in Transmission.
 
 Usage:
     clutchless prune folder [--dry-run] <folders> ...

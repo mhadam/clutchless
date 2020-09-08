@@ -69,9 +69,7 @@ async def verifying_search_task(find_args: FindArgs) -> FindResult:
     torrent_files = find_args.get_torrent_files()
     loop = asyncio.get_event_loop()
     loop.set_debug(enabled=True)
-    task = asyncio.create_task(
-        searcher.get_matches(torrent_files, data_dirs)
-    )
+    task = asyncio.create_task(searcher.get_matches(torrent_files, data_dirs))
     animation_task = asyncio.create_task(waiting_animation())
     search_result: SearchResult = await task
     animation_task.cancel()
@@ -84,9 +82,7 @@ async def search_task(find_args: FindArgs):
     torrent_files = find_args.get_torrent_files()
     loop = asyncio.get_event_loop()
     loop.set_debug(enabled=True)
-    task = asyncio.create_task(
-        searcher.get_matches(torrent_files, data_dirs)
-    )
+    task = asyncio.create_task(searcher.get_matches(torrent_files, data_dirs))
     animation_task = asyncio.create_task(waiting_animation())
     search_result: SearchResult = await task
     animation_task.cancel()

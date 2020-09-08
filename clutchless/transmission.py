@@ -33,7 +33,10 @@ class PartialTorrent:
 
     def verify(self, torrent: MetainfoFile, location: Path) -> bool:
         return not any(
-            [self.__is_wanted_file_missing(file, location) for file in torrent.files]
+            [
+                self.__is_wanted_file_missing(file.path, location)
+                for file in torrent.files
+            ]
         )
 
 
@@ -156,4 +159,15 @@ class TransmissionApi:
             raise TransmissionError(f"clutch failure: {response.result}")
         for torrent in response.arguments.torrents:
             result[torrent.id] = torrent.hash_string
+        return result
+
+    def get_torrent_ids_by_hash(self) -> Mapping[str, int]:
+        result: MutableMapping[str, int] = {}
+        response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
+            fields=["id", "hash_string"]
+        )
+        if response.result != "success":
+            raise TransmissionError(f"clutch failure: {response.result}")
+        for torrent in response.arguments.torrents:
+            result[torrent.hash_string] = torrent.id
         return result

@@ -3,18 +3,24 @@ from pathlib import Path
 from typing import Set, Sequence
 
 
+class PathParser:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def parse_paths(cls, raw_paths: Sequence[str]) -> Set[Path]:
+        return {cls.parse_path(raw_path) for raw_path in raw_paths}
+
+    @classmethod
+    def parse_path(cls, raw_path: str) -> Path:
+        return Path(raw_path).resolve(strict=True)
+
+
 class TorrentFileCrawler:
     def __init__(self):
         pass
 
-    def crawl(self, raw_paths: Sequence[str]) -> Set[Path]:
-        paths = self.__convert_to_paths(raw_paths)
-        return self.__find_torrent_files(paths)
-
-    def __convert_to_paths(self, raw_paths: Sequence[str]) -> Set[Path]:
-        return {Path(raw_path).resolve(strict=False) for raw_path in raw_paths}
-
-    def __find_torrent_files(self, paths: Set[Path]) -> Set[Path]:
+    def crawl(self, paths: Set[Path]) -> Set[Path]:
         torrent_dirs = set()
         torrent_files = set()
         for path in paths:

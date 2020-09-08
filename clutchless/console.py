@@ -35,6 +35,7 @@ from clutchless.command import (
 )
 from clutchless.parse.add import AddArgs, AddFlags
 from clutchless.parse.find import FindArgs
+from clutchless.parse.shared import TorrentFileCrawler, PathParser
 from clutchless.subcommand.add import AddCommand
 from clutchless.subcommand.archive import ArchiveCommand
 from clutchless.subcommand.find import FindCommand
@@ -45,7 +46,10 @@ from clutchless.subcommand.organize import (
 )
 from clutchless.subcommand.other import MissingCommand, InvalidCommand
 from clutchless.subcommand.prune.client import PruneClientCommand
-from clutchless.subcommand.prune.folder import PruneFolderCommand
+from clutchless.subcommand.prune.folder import (
+    PruneFolderCommand,
+    DryRunPruneFolderCommand,
+)
 from clutchless.transmission import TransmissionApi, clutch_factory
 
 
@@ -121,10 +125,10 @@ def prune_folder_factory(argv: Sequence[str], client: TransmissionApi) -> Comman
     prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
     dry_run: bool = prune_args.get("--dry-run")
     raw_folders: Sequence[str] = prune_args.get("<folders>")
-    folder_paths: Set[Path] = convert_to_paths(raw_folders)
-    torrent_files = find_torrent_files(folder_paths)
+    folder_paths: Set[Path] = PathParser.parse_paths(raw_folders)
+    torrent_files = TorrentFileCrawler().crawl(folder_paths)
     if dry_run:
-        return DryRunPruneTorrentCommand(torrent_files)
+        return DryRunPruneFolderCommand()
     return PruneFolderCommand(torrent_files, client)
 
 

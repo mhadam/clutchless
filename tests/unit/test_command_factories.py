@@ -5,8 +5,10 @@ from clutchless.subcommand.prune.folder import PruneFolderCommand
 from clutchless.transmission import TransmissionApi
 
 
-def test_prune_factory_folder(mocker):
-    argv = ['prune', 'folder']
+def test_prune_factory_folder(mocker, tmpdir):
+    test_dir = tmpdir.join("test")
+    test_dir.mkdir()
+    argv = ['prune', 'folder', test_dir.strpath]
     client = mocker.Mock(spec=TransmissionApi)
 
     result = prune_factory(argv, client)

@@ -187,8 +187,12 @@ class VerifyingTorrentSearcher:
         return {torrent.hash_string for torrent in torrent_files}
 
 
-def name_matching_search_task(client: TransmissionApi, search_dirs: Set[Path], torrent_file: MetainfoFile) -> Path:
-    return TorrentPathFinder(client, search_dirs).find_matching_path_from_dirs(torrent_file)
+def name_matching_search_task(
+    client: TransmissionApi, search_dirs: Set[Path], torrent_file: MetainfoFile
+) -> Path:
+    return TorrentPathFinder(client, search_dirs).find_matching_path_from_dirs(
+        torrent_file
+    )
 
 
 class NameMatchingTorrentSearcher:
@@ -196,7 +200,7 @@ class NameMatchingTorrentSearcher:
         self.client = client
 
     async def get_matches(
-            self, torrent_files: Set[MetainfoFile], search_dirs: Set[Path]
+        self, torrent_files: Set[MetainfoFile], search_dirs: Set[Path]
     ) -> SearchResult:
         executor = concurrent.futures.ProcessPoolExecutor(max_workers=1)
         futures: MutableMapping[Awaitable, MetainfoFile] = {}
@@ -233,7 +237,7 @@ class NameMatchingTorrentSearcher:
         return self.__make_search_result(result, torrent_files)
 
     def __submit_to_executor(
-            self, executor, search_dirs: Set[Path], torrent_file: MetainfoFile
+        self, executor, search_dirs: Set[Path], torrent_file: MetainfoFile
     ) -> Awaitable[Path]:
         loop = asyncio.get_running_loop()
         return loop.run_in_executor(
@@ -241,7 +245,7 @@ class NameMatchingTorrentSearcher:
         )
 
     def __make_search_result(
-            self, matches: Mapping[str, Path], torrent_files: Set[MetainfoFile]
+        self, matches: Mapping[str, Path], torrent_files: Set[MetainfoFile]
     ) -> SearchResult:
         not_found = self.__get_all_hashes(torrent_files) - matches.keys()
         file_store = TorrentFileStore()

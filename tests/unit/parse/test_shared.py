@@ -2,7 +2,28 @@ from pathlib import Path
 
 from pytest import raises
 
-from clutchless.parse.shared import TorrentFileCrawler, DataDirectoryParser
+from clutchless.parse.shared import TorrentFileCrawler, DataDirectoryParser, PathParser
+
+
+def test_path_parser_existing(tmpdir):
+    first_dir = tmpdir.join("test")
+    first_dir.mkdir()
+    second_dir = tmpdir.join("test2")
+    second_dir.mkdir()
+    raw_paths = [test_dir.strpath for test_dir in [first_dir, second_dir]]
+
+    paths = PathParser.parse_paths(raw_paths)
+
+    assert paths == {Path(raw_path) for raw_path in raw_paths}
+
+
+def test_path_parser_nonexistent(tmpdir):
+    raw_paths = ['/fake_dir']
+
+    with raises(FileNotFoundError) as e:
+        _ = PathParser.parse_paths(raw_paths)
+
+    assert e.value.errno == 2
 
 
 def test_crawl(tmpdir):
@@ -19,9 +40,10 @@ def test_crawl(tmpdir):
 
     cases = [first_dir, second_file, empty_dir]
     raw_paths = [case.strpath for case in cases]
+    paths = PathParser.parse_paths(raw_paths)
 
     crawler = TorrentFileCrawler()
-    result = crawler.crawl(raw_paths)
+    result = crawler.crawl(paths)
 
     expected_result = {
         Path(path.strpath) for path in [nested_file, second_file]
@@ -32,10 +54,11 @@ def test_crawl(tmpdir):
 
 def test_crawl_with_nonexistent_path(tmpdir):
     nonexistent_dir = tmpdir.join("test2")
+    paths = [Path(nonexistent_dir.strpath)]
 
     with raises(ValueError) as e:
         crawler = TorrentFileCrawler()
-        crawler.crawl([nonexistent_dir.strpath])
+        crawler.crawl(paths)
 
     assert "supplied torrent path doesn't exist" in str(e.value).lower()
 
