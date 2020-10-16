@@ -1,0 +1,25 @@
+version: '3'
+volumes:
+  torrent-data:
+services:
+  transmission:
+    volumes:
+      - torrent-data:${DATA_MOUNT_PATH}
+    build:
+      context: ../..
+      dockerfile: docker/integration/transmission.df
+  testbed:
+    volumes:
+      - torrent-data:${DATA_MOUNT_PATH}
+    build:
+      context: ../..
+      dockerfile: docker/integration/clutchless.df
+    depends_on:
+      - transmission
+  start_dependencies:
+    build:
+      context: .
+      dockerfile: integration-wait.df
+    depends_on:
+      - transmission
+    command: transmission:9091
