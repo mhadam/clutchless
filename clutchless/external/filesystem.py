@@ -4,7 +4,6 @@ from typing import Protocol, Iterable, Optional
 
 
 class Filesystem(Protocol):
-
     def exists(self, path: Path) -> bool:
         raise NotImplementedError
 
@@ -25,7 +24,6 @@ class Filesystem(Protocol):
 
 
 class DefaultFilesystem(Filesystem):
-
     def __init__(self):
         pass
 
@@ -39,17 +37,22 @@ class DefaultFilesystem(Filesystem):
         return path.is_file()
 
     def children(self, path: Path) -> Iterable[Path]:
-        normalized_path = str(path).rstrip('/')
-        return map(Path, glob.iglob(f'{normalized_path}/*'))
+        normalized_path = str(path).rstrip("/")
+        return map(Path, glob.iglob(f"{normalized_path}/*"))
 
     def find(self, path: Path, filename: str, is_file: bool = True) -> Optional[Path]:
-        normalized_path = str(path).rstrip('/')
+        normalized_path = str(path).rstrip("/")
         termination = "" if is_file else "/"
-        result = map(lambda p: Path(p).parent, glob.iglob(f'{normalized_path}/**/{filename}{termination}', recursive=True))
+        result = map(
+            lambda p: Path(p).parent,
+            glob.iglob(f"{normalized_path}/**/{filename}{termination}", recursive=True),
+        )
         return next(result, None)
 
     def collect(self, path: Path, extension: str) -> Iterable[Path]:
         if path.is_file():
-            raise ValueError(f'{path} is not a directory')
-        normalized_path = str(path).rstrip('/')
-        return map(Path, glob.iglob(f'{normalized_path}/**/*.{extension}', recursive=True))
+            raise ValueError(f"{path} is not a directory")
+        normalized_path = str(path).rstrip("/")
+        return map(
+            Path, glob.iglob(f"{normalized_path}/**/*.{extension}", recursive=True)
+        )

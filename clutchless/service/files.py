@@ -11,6 +11,6 @@ def collect_metainfo_files(fs: Filesystem, raw_paths: Set[str]) -> Set[Path]:
             if fs.is_file(path) and path.suffix == ".torrent":
                 yield path
             elif fs.is_directory(path):
-                yield from fs.collect(path, '.torrent')
+                yield from fs.collect(path, ".torrent")
 
     return set(generate_paths())

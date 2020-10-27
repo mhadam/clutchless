@@ -1,7 +1,7 @@
 import itertools
-from dataclasses import dataclass
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Mapping, Sequence, Set, Union, MutableMapping, Optional
+from typing import Mapping, Sequence, Set, Union, MutableMapping, Protocol
 
 from clutch import Client
 from clutch.network.rpc.message import Response
@@ -48,17 +48,60 @@ class TransmissionError(Exception):
         self.message = message
 
 
-class TransmissionApi:
+class TransmissionApi(Protocol):
+    def add_torrent(self, file):
+        raise NotImplementedError
+
+    def get_partial_torrents(self):
+        raise NotImplementedError
+
+    def get_incomplete_ids(self):
+        raise NotImplementedError
+
+    def get_incomplete_torrent_files(self):
+        raise NotImplementedError
+
+    def get_torrents(self, ids, fields):
+        raise NotImplementedError
+
+    def get_announce_urls(self):
+        raise NotImplementedError
+
+    def get_torrent_trackers(self):
+        raise NotImplementedError
+
+    def move_torrent_location(self, torrent_id, new_path):
+        raise NotImplementedError
+
+    def change_torrent_location(self, torrent_id, new_path):
+        raise NotImplementedError
+
+    def get_torrent_location(self, torrent_id):
+        raise NotImplementedError
+
+    def get_torrent_files_by_id(self):
+        raise NotImplementedError
+
+    def get_torrent_hashes_by_id(self):
+        raise NotImplementedError
+
+    def get_torrent_ids_by_hash(self):
+        raise NotImplementedError
+
+    def get_torrent_names_by_id_with_missing_data(self):
+        raise NotImplementedError
+
+    def remove_torrent_keeping_data(self, torrent_id):
+        raise NotImplementedError
+
+
+class TransmissionApiImpl(TransmissionApi):
     def __init__(self, client: Client):
         self.client = client
 
     def add_torrent(self, file: Path):
-        arguments: TorrentAddArguments = {
-            "filename": str(file)
-        }
-        response: Response[TorrentAdd] = self.client.torrent.add(
-            arguments
-        )
+        arguments: TorrentAddArguments = {"filename": str(file)}
+        response: Response[TorrentAdd] = self.client.torrent.add(arguments)
         if response.result != "success":
             raise TransmissionError(f"clutch failure: {response.result}")
         if response.arguments.torrent_added:
@@ -67,7 +110,6 @@ class TransmissionApi:
             raise TransmissionError(f"duplicate torrent")
         else:
             raise TransmissionError(f"unknown error")
-
 
     def get_partial_torrents(self) -> Mapping[str, PartialTorrent]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(

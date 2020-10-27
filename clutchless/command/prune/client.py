@@ -23,7 +23,9 @@ class PruneClientCommand(Command):
         self.client = client
 
     def run(self) -> CommandResult:
-        missing_torrent_names_by_id = self.client.get_torrent_names_by_id_with_missing_data()
+        missing_torrent_names_by_id = (
+            self.client.get_torrent_names_by_id_with_missing_data()
+        )
         for torrent_id in missing_torrent_names_by_id.keys():
             self.client.remove_torrent_keeping_data(torrent_id)
         return PruneClientResult(set(missing_torrent_names_by_id.values()))
@@ -47,5 +49,7 @@ class DryRunPruneClientCommand(Command):
         self.client = client
 
     def run(self) -> CommandResult:
-        missing_torrent_names_by_id = self.client.get_torrent_names_by_id_with_missing_data()
+        missing_torrent_names_by_id = (
+            self.client.get_torrent_names_by_id_with_missing_data()
+        )
         return DryRunPruneClientResult(set(missing_torrent_names_by_id.values()))

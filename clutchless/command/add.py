@@ -64,6 +64,10 @@ class DryRunAddCommand(Command):
 
 
 class AddCommand(Command):
+    pass
+
+
+class OldAddCommand(Command):
     def __init__(self, args: AddArgs, flags: AddFlags, client: TransmissionApi):
         self.args = args
         self.flags = flags

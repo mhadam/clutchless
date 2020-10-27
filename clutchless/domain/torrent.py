@@ -46,7 +46,7 @@ class MetainfoFile:
 
     @property
     def files(self) -> Sequence[TorrentFile]:
-        files = self.info.get('files')
+        files = self.info.get("files")
         return [convert_file(file) for file in files]
 
     @property
@@ -67,6 +67,7 @@ class MetainfoFile:
     def __validate_file_torrent_check(is_length_present: bool, is_files_present: bool):
         def xnor(a: bool, b: bool) -> bool:
             return a and b or not a and not b
+
         if xnor(is_length_present, is_files_present):
             raise ValueError(
                 "must contain either length key or files key, not both or neither"
@@ -77,8 +78,10 @@ class MetainfoFile:
             filepath = path / self.name
             return fs.is_file(filepath)
         else:
+
             def verify(file: TorrentFile) -> bool:
                 return fs.is_file(path / self.name / file.path)
+
             verifieds = [verify(file) for file in self.files]
             return all(verifieds)
 

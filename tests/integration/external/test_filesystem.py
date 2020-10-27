@@ -4,7 +4,7 @@ from clutchless.external.filesystem import DefaultFilesystem
 
 
 def test_default_filesystem_file(tmp_path):
-    file: Path = tmp_path / 'testfile'
+    file: Path = tmp_path / "testfile"
     file.touch()
 
     fs = DefaultFilesystem()

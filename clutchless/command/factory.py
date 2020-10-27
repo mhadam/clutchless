@@ -4,7 +4,11 @@ from typing import Sequence, Set, Mapping
 
 from docopt import docopt
 
-from clutchless.command.command import Command, CommandFactoryWithoutClient, CommandFactory
+from clutchless.command.command import (
+    Command,
+    CommandFactoryWithoutClient,
+    CommandFactory,
+)
 from clutchless.external.transmission import TransmissionApi
 from clutchless.spec.add import AddArgs, AddFlags
 from clutchless.spec.find import FindArgs

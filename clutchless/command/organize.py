@@ -37,20 +37,24 @@ class AnnounceUrlGrouper:
     def __init__(self, client: TransmissionApi):
         self.client = client
 
-    def get_announce_urls_by_group_name(self) -> 'OrderedDict[str, Sequence[str]]':
+    def get_announce_urls_by_group_name(self) -> "OrderedDict[str, Sequence[str]]":
         groups_by_name = self.__get_groups_by_name()
         groups_sorted_by_name = self.__sort_groups_by_name(groups_by_name)
         return self.__sort_url_sets(groups_sorted_by_name)
 
     @staticmethod
-    def __sort_url_sets(groups_by_name: 'OrderedDict[str, Set[str]]') -> 'OrderedDict[str, Sequence[str]]':
+    def __sort_url_sets(
+        groups_by_name: "OrderedDict[str, Set[str]]",
+    ) -> "OrderedDict[str, Sequence[str]]":
         result = OrderedDict()
         for (name, urls) in groups_by_name.items():
             result[name] = sorted(urls)
         return result
 
     @staticmethod
-    def __sort_groups_by_name(groups: Mapping[str, Set[str]]) -> 'OrderedDict[str, Set[str]]':
+    def __sort_groups_by_name(
+        groups: Mapping[str, Set[str]]
+    ) -> "OrderedDict[str, Set[str]]":
         return OrderedDict(sorted(groups.items()))
 
     def __get_groups_by_name(self) -> Mapping[str, Set[str]]:
@@ -103,8 +107,12 @@ class FolderNameChooser:
         """Returns map: urls to folder names"""
         result: MutableMapping[str, str] = {}
         grouper = AnnounceUrlGrouper(self.client)
-        announce_urls_by_group_name: 'OrderedDict[str, Sequence[str]]' = grouper.get_announce_urls_by_group_name()
-        for (index, (group_name, urls)) in enumerate(announce_urls_by_group_name.items()):
+        announce_urls_by_group_name: "OrderedDict[str, Sequence[str]]" = (
+            grouper.get_announce_urls_by_group_name()
+        )
+        for (index, (group_name, urls)) in enumerate(
+            announce_urls_by_group_name.items()
+        ):
             for url in urls:
                 try:
                     result[url] = self.overrides[index]
@@ -198,7 +206,7 @@ class OrganizeCommand(Command):
 
 @dataclass
 class ListOrganizeCommandResult(CommandResult):
-    hostname_to_trackers: 'OrderedDict[str, Sequence[str]]'
+    hostname_to_trackers: "OrderedDict[str, Sequence[str]]"
 
     def output(self):
         if len(self.hostname_to_trackers) > 0:
@@ -212,10 +220,10 @@ class ListOrganizeCommandResult(CommandResult):
     def __print_entries(self):
         table = Texttable()
         table.set_deco(Texttable.HEADER)
-        table.set_cols_dtype(['i', 't', 't'])
-        table.set_cols_align(['l', 'l', 'l'])
-        table.set_header_align(['l', 'l', 'l'])
-        table.header(['ID', 'Name', 'Tracker'])
+        table.set_cols_dtype(["i", "t", "t"])
+        table.set_cols_align(["l", "l", "l"])
+        table.set_header_align(["l", "l", "l"])
+        table.header(["ID", "Name", "Tracker"])
         for index, (group_name, urls) in enumerate(self.hostname_to_trackers.items()):
             self.__add_entry(table, index, group_name, urls)
         table_output = table.draw()
@@ -231,7 +239,7 @@ class ListOrganizeCommandResult(CommandResult):
 
     def __shorten_url(self, url: str) -> str:
         if len(url) > 40:
-            return url[:37] + '...'
+            return url[:37] + "..."
         return url
 
 

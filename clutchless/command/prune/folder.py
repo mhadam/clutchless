@@ -13,11 +13,11 @@ class DryRunPruneFolderCommandResult(CommandResult):
 
     def output(self):
         if len(self.pruned) > 0:
-            print('The following metainfo files would be removed:')
+            print("The following metainfo files would be removed:")
             for file in self.pruned:
-                print(f'{file.name} at {file.path}')
+                print(f"{file.name} at {file.path}")
         else:
-            print('No metainfo files would be removed.')
+            print("No metainfo files would be removed.")
 
 
 class MetainfoFileClientMatcher:
@@ -58,11 +58,11 @@ class PruneFolderCommandResult(CommandResult):
 
     def output(self):
         if len(self.pruned) > 0:
-            print('The following metainfo files were removed:')
+            print("The following metainfo files were removed:")
             for file in self.pruned:
-                print(f'{file.name} at {file.path}')
+                print(f"{file.name} at {file.path}")
         else:
-            print('No metainfo files were removed.')
+            print("No metainfo files were removed.")
 
 
 class PruneFolderCommand(Command):
