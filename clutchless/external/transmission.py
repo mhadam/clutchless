@@ -1,13 +1,16 @@
 import itertools
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence, Set, Union, MutableMapping
+from typing import Mapping, Sequence, Set, Union, MutableMapping, Optional
 
 from clutch import Client
 from clutch.network.rpc.message import Response
+from clutch.schema.user.method.torrent.add import TorrentAddArguments
 from clutch.schema.user.response.torrent.accessor import (
     TorrentAccessorResponse,
     TorrentAccessorObject,
 )
+from clutch.schema.user.response.torrent.add import TorrentAdd
 
 from clutchless.domain.torrent import MetainfoFile
 
@@ -48,6 +51,23 @@ class TransmissionError(Exception):
 class TransmissionApi:
     def __init__(self, client: Client):
         self.client = client
+
+    def add_torrent(self, file: Path):
+        arguments: TorrentAddArguments = {
+            "filename": str(file)
+        }
+        response: Response[TorrentAdd] = self.client.torrent.add(
+            arguments
+        )
+        if response.result != "success":
+            raise TransmissionError(f"clutch failure: {response.result}")
+        if response.arguments.torrent_added:
+            return
+        elif response.arguments.torrent_duplicate:
+            raise TransmissionError(f"duplicate torrent")
+        else:
+            raise TransmissionError(f"unknown error")
+
 
     def get_partial_torrents(self) -> Mapping[str, PartialTorrent]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(

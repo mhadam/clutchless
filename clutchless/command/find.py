@@ -6,7 +6,6 @@ from colorama import init, deinit, Fore
 
 from clutchless.command.command import Command, CommandResult
 from clutchless.spec.find import FindArgs
-from clutchless.search import SearchResult
 from clutchless.domain.torrent import MetainfoFile
 
 
