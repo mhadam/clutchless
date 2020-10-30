@@ -29,7 +29,7 @@ from clutchless.command.command import (
     CommandResult,
 )
 from clutchless.command.factory import CommandCreator
-from clutchless.external.transmission import TransmissionApi, clutch_factory
+from clutchless.external.transmission import clutch_factory, ClutchApi
 
 
 class Application:
@@ -39,7 +39,7 @@ class Application:
     def run(self):
         logging.basicConfig(level=logging.DEBUG)
         clutch_client = clutch_factory(self.args)
-        client = TransmissionApi(clutch_client)
+        client = ClutchApi(clutch_client)
         command = CommandCreator(self.args, client).get_command()
         result: CommandResult = command.run()
         result.output()

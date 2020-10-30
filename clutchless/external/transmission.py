@@ -95,7 +95,7 @@ class TransmissionApi(Protocol):
         raise NotImplementedError
 
 
-class TransmissionApiImpl(TransmissionApi):
+class ClutchApi(TransmissionApi):
     def __init__(self, client: Client):
         self.client = client
 
