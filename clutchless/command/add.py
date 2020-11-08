@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import MutableMapping, MutableSequence, Set, Tuple
+from typing import MutableMapping, MutableSequence, Set, Tuple, Sequence
 
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile, LinkedMetainfo
@@ -27,6 +27,26 @@ class LinkingAddOutput(CommandOutput):
     failed_torrents: MutableMapping[Path, str] = field(default_factory=dict)
     duplicated_torrents: MutableMapping[Path, str] = field(default_factory=dict)
     deleted_torrents: MutableSequence[Path] = field(default_factory=list)
+
+    def add_failed(self, failures: Sequence[Path], errors: Sequence[str]):
+        # handle failures
+        for (path, error) in zip(failures, errors):
+            if "duplicate" in error:
+                self.duplicated_torrents[path] = error
+            else:
+                self.failed_torrents[path] = error
+
+    def add_no_link_succeses(self, successes: Sequence[Path]):
+        # handle success (overlap with linked)
+        for path in successes:
+            self.added_torrents.append(path)
+            # related to fs.remove
+            self.deleted_torrents.append(path)
+
+    def add_linked_successes(self, metainfo_path: Sequence[Path], data_path: Sequence[Path]):
+        # handle linked
+        for (metainfo_path, data_path) in zip(metainfo_path, data_path):
+            self.linked_torrents[metainfo_path] = data_path
 
     def display(self):
         pass
@@ -67,30 +87,13 @@ class LinkingAddCommand(Command):
 
     def __make_output(self) -> LinkingAddOutput:
         output = LinkingAddOutput()
-        # handle failures
-        for (path, error) in zip(self.add_service.fail, self.add_service.error):
-            if "duplicate" in error:
-                output.duplicated_torrents[path] = error
-            else:
-                output.failed_torrents[path] = error
-        # handle success (overlap with linked)
-        for path in self.add_service.added_without_data:
-            output.added_torrents.append(path)
-            # related to fs.remove
-            output.deleted_torrents.append(path)
-        # handle linked
-        for (metainfo_path, data_path) in zip(self.add_service.found, self.add_service.link):
-            output.linked_torrents[metainfo_path] = data_path
+        output.add_failed(self.add_service.fail, self.add_service.error)
+        output.add_no_link_succeses(self.add_service.added_without_data)
+        output.add_linked_successes(self.add_service.found, self.add_service.link)
         return output
 
-    def __get_linked_and_rest(self) -> Tuple[Set[LinkedMetainfo], Set[MetainfoFile]]:
-        linked_metainfos: Set[LinkedMetainfo] = self.link_service.find(self.metainfo_files)
-        linked_metainfo_files: Set[MetainfoFile] = {metainfo.metainfo_file for metainfo in linked_metainfos}
-        rest: Set[MetainfoFile] = self.metainfo_files - linked_metainfo_files
-        return linked_metainfos, rest
-
     def run(self) -> LinkingAddOutput:
-        linked, rest = self.__get_linked_and_rest()
+        linked, rest = self.link_service.find(self.metainfo_files)
         for file in linked:
             self.add_service.add_with_data(file.metainfo_file.path, file.data)
         for file in rest:

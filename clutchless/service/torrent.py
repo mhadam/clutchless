@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterable, Set, MutableSequence, Mapping
+from typing import Iterable, Set, MutableSequence, Mapping, Tuple
 
 from clutchless.domain.torrent import MetainfoFile, LinkedMetainfo
 from clutchless.external.filesystem import Filesystem
@@ -53,9 +53,12 @@ class LinkService:
                 return [linked]
         return []
 
-    def find(self, metainfo_files: Set[MetainfoFile]) -> Set[LinkedMetainfo]:
+    def find(self, metainfo_files: Set[MetainfoFile]) -> Tuple[Set[LinkedMetainfo], Set[MetainfoFile]]:
         def generate() -> Iterable[LinkedMetainfo]:
             for file in metainfo_files:
                 yield from self.__search_dirs(file)
 
-        return set(generate())
+        linked_metainfos = set(generate())
+        linked_metainfo_files: Set[MetainfoFile] = {metainfo.metainfo_file for metainfo in linked_metainfos}
+        rest: Set[MetainfoFile] = metainfo_files - linked_metainfo_files
+        return linked_metainfos, rest
