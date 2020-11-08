@@ -6,29 +6,29 @@ from clutch.network.rpc.message import Response
 from clutch.schema.user.method.torrent.action import TorrentActionMethod
 from torrentool.torrent import Torrent
 
-from clutchless.command.command import CommandResult, Command
+from clutchless.command.command import CommandOutput, Command
 
 
-class MissingCommandResult(CommandResult):
-    def output(self):
+class MissingCommandOutput(CommandOutput):
+    def display(self):
         print(
             "Empty command! This is probably a bug. Be ambitious, investigate it and fix it!"
         )
 
 
 class MissingCommand(Command):
-    def run(self) -> CommandResult:
-        return MissingCommandResult()
+    def run(self) -> CommandOutput:
+        return MissingCommandOutput()
 
 
-class InvalidCommandResult(CommandResult):
-    def output(self):
+class InvalidCommandOutput(CommandOutput):
+    def display(self):
         print("Invalid command!")
 
 
 class InvalidCommand(Command):
-    def run(self) -> CommandResult:
-        return InvalidCommandResult()
+    def run(self) -> CommandOutput:
+        return InvalidCommandOutput()
 
 
 @dataclass

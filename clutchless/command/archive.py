@@ -3,7 +3,7 @@ from pathlib import Path
 from shutil import copy
 from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
-from clutchless.command.command import Command, CommandResult, CommandResultAccumulator
+from clutchless.command.command import Command, CommandOutput, CommandOutputAccumulator
 from clutchless.external.transmission import TransmissionApi
 
 
@@ -14,11 +14,11 @@ class ArchiveCount:
 
 
 @dataclass
-class ArchiveResult(CommandResult):
+class ArchiveOutput(CommandOutput):
     copied: MutableMapping[int, Path] = field(default_factory=dict)
     already_exist: MutableSequence["ArchiveAlreadyExists"] = field(default_factory=list)
 
-    def output(self):
+    def display(self):
         for (torrent_id, path) in self.copied.items():
             print(f"Copied {torrent_id} to {path}")
         for event in self.already_exist:
@@ -28,21 +28,21 @@ class ArchiveResult(CommandResult):
 
 
 @dataclass
-class ArchiveCopied(CommandResultAccumulator):
+class ArchiveCopied(CommandOutputAccumulator):
     torrent_id: int
     copied_path: Path
 
-    def accumulate(self, result: ArchiveResult):
+    def accumulate(self, result: ArchiveOutput):
         result.copied[self.torrent_id] = self.copied_path
 
 
 @dataclass
-class ArchiveAlreadyExists(CommandResultAccumulator):
+class ArchiveAlreadyExists(CommandOutputAccumulator):
     torrent_id: int
     copied_path: Path
     error: str
 
-    def accumulate(self, result: ArchiveResult):
+    def accumulate(self, result: ArchiveOutput):
         result.already_exist.append(self)
 
 
@@ -55,14 +55,14 @@ class ArchiveCommand(Command):
         self.client = client
         self.archive_path = archive_path
 
-    def run(self) -> CommandResult:
-        result = ArchiveResult()
+    def run(self) -> CommandOutput:
+        result = ArchiveOutput()
         for accumulator in self.__collect_accumulators():
             accumulator.accumulate(result)
         return result
 
-    def __collect_accumulators(self) -> Sequence[CommandResultAccumulator]:
-        accumulators: MutableSequence[CommandResultAccumulator] = []
+    def __collect_accumulators(self) -> Sequence[CommandOutputAccumulator]:
+        accumulators: MutableSequence[CommandOutputAccumulator] = []
         torrent_files_by_id = self.__get_torrent_files_by_id()
         for (torrent_id, torrent_file) in torrent_files_by_id.items():
             new_path: Path = self.__get_new_path(torrent_file)

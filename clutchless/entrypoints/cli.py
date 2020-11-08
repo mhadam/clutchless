@@ -26,7 +26,7 @@ from typing import Mapping
 from docopt import docopt
 
 from clutchless.command.command import (
-    CommandResult,
+    CommandOutput,
 )
 from clutchless.command.factory import CommandCreator
 from clutchless.external.transmission import clutch_factory, ClutchApi
@@ -41,8 +41,8 @@ class Application:
         clutch_client = clutch_factory(self.args)
         client = ClutchApi(clutch_client)
         command = CommandCreator(self.args, client).get_command()
-        result: CommandResult = command.run()
-        result.output()
+        result: CommandOutput = command.run()
+        result.display()
 
 
 def parse_logging_level(args: Mapping) -> int:

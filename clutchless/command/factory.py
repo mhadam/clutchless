@@ -10,6 +10,7 @@ from clutchless.command.command import (
     CommandFactory,
 )
 from clutchless.external.transmission import TransmissionApi
+from clutchless.service.files import collect_metainfo_files
 from clutchless.spec.add import AddArgs, AddFlags
 from clutchless.spec.find import FindArgs
 from clutchless.spec.shared import PathParser, MetainfoFileCrawler
@@ -36,9 +37,10 @@ def add_factory(argv: Sequence[str]) -> Command:
     args = docopt(doc=add_command.__doc__, argv=argv)
     add_args = AddArgs.parse(args)
     add_flags = AddFlags.parse(args)
+    metainfo_files: Set[Path] = collect_metainfo_files(fs, raw_paths)
 
     # action
-    return AddCommand(add_args, add_flags)
+    return AddCommand(metainfo_files)
 
 
 def link_factory(argv: Sequence[str], client: TransmissionApi) -> Command:

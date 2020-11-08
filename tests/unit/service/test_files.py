@@ -4,7 +4,7 @@ from pathlib import Path
 from pytest_mock import MockerFixture
 
 from clutchless.external.filesystem import Filesystem
-from clutchless.service.files import collect_metainfo_files
+from clutchless.service.file import collect_metainfo_files
 
 
 def test_collect_metainfo_files(mocker: MockerFixture):

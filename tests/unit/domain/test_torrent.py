@@ -144,7 +144,7 @@ def test_verify_metainfo_location_multifile(mocker: MockerFixture):
     fs.is_file.side_effect = lambda path: path in fs_files
 
     metainfo_file = MetainfoFile(
-        {"name": "torrent_name", "info": {"files": info_files}}
+        {"name": "torrent_name", "info": {"files": info_files}},
     )
 
     result = metainfo_file.verify(fs, Path("/root"))

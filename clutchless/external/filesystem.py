@@ -22,6 +22,9 @@ class Filesystem(Protocol):
     def collect(self, path: Path, extension: str) -> Iterable[Path]:
         raise NotImplementedError
 
+    def remove(self, path: Path):
+        raise NotImplementedError
+
 
 class DefaultFilesystem(Filesystem):
     def __init__(self):
@@ -56,3 +59,11 @@ class DefaultFilesystem(Filesystem):
         return map(
             Path, glob.iglob(f"{normalized_path}/**/*.{extension}", recursive=True)
         )
+
+    def remove(self, path: Path):
+        path.unlink()
+
+
+class DryRunFilesystem(DefaultFilesystem):
+    def remove(self, path: Path):
+        pass

@@ -4,12 +4,12 @@ from pathlib import Path
 
 from colorama import init, deinit, Fore
 
-from clutchless.command.command import Command, CommandResult
+from clutchless.command.command import Command, CommandOutput
 from clutchless.spec.find import FindArgs
 from clutchless.domain.torrent import MetainfoFile
 
 
-class FindResult(CommandResult):
+class FindOutput(CommandOutput):
     def __init__(self, result: SearchResult):
         self.result: SearchResult = result
 
@@ -26,7 +26,7 @@ class FindResult(CommandResult):
     def get_torrent(self, hash_string: str) -> MetainfoFile:
         return self.result.file_store.get_torrent(hash_string)
 
-    def output(self):
+    def display(self):
         init()
         matches_count = len(self.result.found)
         if matches_count > 0:
@@ -57,12 +57,12 @@ class FindCommand(Command):
     def __init__(self, find_args: FindArgs):
         self.find_args = find_args
 
-    def run(self) -> FindResult:
+    def run(self) -> FindOutput:
         task = asyncio.run(search_task(self.find_args), debug=True)
         return task
 
 
-async def verifying_search_task(find_args: FindArgs) -> FindResult:
+async def verifying_search_task(find_args: FindArgs) -> FindOutput:
     searcher = find_args.get_async_searcher()
     data_dirs = find_args.get_data_dirs()
     torrent_files = find_args.get_torrent_files()
@@ -72,7 +72,7 @@ async def verifying_search_task(find_args: FindArgs) -> FindResult:
     animation_task = asyncio.create_task(waiting_animation())
     search_result: SearchResult = await task
     animation_task.cancel()
-    return FindResult(search_result)
+    return FindOutput(search_result)
 
 
 async def search_task(find_args: FindArgs):
@@ -85,4 +85,4 @@ async def search_task(find_args: FindArgs):
     animation_task = asyncio.create_task(waiting_animation())
     search_result: SearchResult = await task
     animation_task.cancel()
-    return FindResult(search_result)
+    return FindOutput(search_result)

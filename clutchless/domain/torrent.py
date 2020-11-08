@@ -19,20 +19,20 @@ def convert_file(file: Mapping) -> TorrentFile:
 
 
 class MetainfoFile:
-
     PROPERTIES = ["name", "info_hash"]
 
-    def __init__(self, properties: MutableMapping):
+    def __init__(self, properties: MutableMapping, path: Path = None):
+        self.path = path
         self._properties = properties
 
     @classmethod
     def from_path(cls, path: Path) -> "MetainfoFile":
         external_torrent = ExternalTorrent.from_file(str(path))
-        torrent_file = MetainfoFile({})
+        torrent_file = MetainfoFile({}, path)
         for prop in cls.PROPERTIES:
             torrent_file._properties[prop] = getattr(external_torrent, prop)
         torrent_file._properties["info"] = (
-            external_torrent._struct.get("info") or dict()
+                external_torrent._struct.get("info") or dict()
         )
         return torrent_file
 
@@ -91,6 +91,11 @@ class MetainfoFile:
         if found and self.verify(fs, found):
             return path
 
+    def link(self, fs: Filesystem, path: Path) -> Optional['LinkedMetainfo']:
+        found = self.find(fs, path)
+        if found:
+            return LinkedMetainfo(self, found)
+
     def __str__(self):
         return f"{self.name}"
 
@@ -108,3 +113,9 @@ class MetainfoFile:
 
     def __hash__(self):
         return hash(self.info_hash)
+
+
+@dataclass
+class LinkedMetainfo:
+    metainfo_file: MetainfoFile
+    data: Path
