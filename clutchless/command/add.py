@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import MutableMapping, MutableSequence, Set, Tuple, Sequence
+from typing import MutableMapping, MutableSequence, Set, Sequence
 
 from clutchless.command.command import Command, CommandOutput
-from clutchless.domain.torrent import MetainfoFile, LinkedMetainfo
+from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
 from clutchless.service.torrent import AddService, LinkService
 
