@@ -97,7 +97,7 @@ def test_metainfo_find(mocker):
     fs_files = {Path("/", "root", "torrent_name", file) for file in torrent_files}
 
     def find(path: Path, filename: str, is_file: bool):
-        if path == Path("/") and filename == "torrent_name" and not is_file:
+        if path == Path("/") and filename == "torrent_name" and is_file:
             return Path("/", "root")
 
     fs = mocker.Mock(spec=Filesystem)

@@ -86,10 +86,9 @@ class MetainfoFile:
             return all(verifieds)
 
     def find(self, fs: Filesystem, path: Path) -> Optional[Path]:
-        is_file = self.is_single_file
-        found = fs.find(path, self.name, is_file)
+        found = fs.find(path, self.name, not self.is_single_file)
         if found and self.verify(fs, found):
-            return path
+            return found.parent
 
     def link(self, fs: Filesystem, path: Path) -> Optional['LinkedMetainfo']:
         found = self.find(fs, path)
@@ -115,7 +114,7 @@ class MetainfoFile:
         return hash(self.info_hash)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LinkedMetainfo:
     metainfo_file: MetainfoFile
     data: Path

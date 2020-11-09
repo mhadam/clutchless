@@ -38,7 +38,7 @@ def test_default_filesystem_find_file(tmp_path):
     file.touch()
     fs = DefaultFilesystem()
 
-    result = fs.find(tmp_path, "test_file", True)
+    result = fs.find(tmp_path, "test_file")
 
     assert result == tmp_path
 
@@ -48,6 +48,6 @@ def test_default_filesystem_find_directory(tmp_path):
     file.mkdir(parents=True)
     fs = DefaultFilesystem()
 
-    result = fs.find(tmp_path, "test_dir", False)
+    result = fs.find(tmp_path, "test_dir", True)
 
     assert result == tmp_path
