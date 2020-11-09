@@ -1,88 +1,52 @@
-import asyncio
-import itertools
-from pathlib import Path
+from typing import Set
 
 from colorama import init, deinit, Fore
 
 from clutchless.command.command import Command, CommandOutput
+from clutchless.domain.torrent import MetainfoFile, LinkedMetainfo
+from clutchless.service.torrent import LinkService
 from clutchless.spec.find import FindArgs
-from clutchless.domain.torrent import MetainfoFile
 
 
 class FindOutput(CommandOutput):
-    def __init__(self, result: SearchResult):
-        self.result: SearchResult = result
+    def __init__(self, found: Set[LinkedMetainfo], missing: Set[MetainfoFile]):
+        self.found = found
+        self.missing = missing
 
     @staticmethod
-    def print_found(torrent: MetainfoFile, path: Path):
+    def print_found(found: LinkedMetainfo):
+        name = found.metainfo_file.name
+        path = found.metainfo_file.path
         print(
-            Fore.GREEN + f"\N{check mark} {torrent.name} at {path.resolve(strict=True)}"
+            Fore.GREEN + f"\N{check mark} {name} at {path}"
         )
 
     @staticmethod
     def print_missing(torrent: MetainfoFile):
         print(Fore.RED + f"\N{ballot x} {torrent.name}")
 
-    def get_torrent(self, hash_string: str) -> MetainfoFile:
-        return self.result.file_store.get_torrent(hash_string)
-
     def display(self):
         init()
-        matches_count = len(self.result.found)
+        matches_count = len(self.found)
         if matches_count > 0:
             print(Fore.LIGHTWHITE_EX + f"Found {matches_count} torrents:")
-            for (torrent_hash, path) in self.result.found.items():
-                torrent = self.get_torrent(torrent_hash)
-                self.print_found(torrent, path)
-        misses_count = len(self.result.not_found)
+            for linked in self.found:
+                self.print_found(linked)
+        misses_count = len(self.missing)
         if misses_count > 0:
             print(Fore.LIGHTWHITE_EX + f"Did not find {misses_count} torrents:")
-            for torrent_hash in self.result.not_found:
-                torrent = self.get_torrent(torrent_hash)
-                self.print_missing(torrent)
+            for file in self.missing:
+                self.print_missing(file)
         deinit()
 
 
-async def waiting_animation():
-    async def generator():
-        for symbol in itertools.cycle("|/-\\"):
-            await asyncio.sleep(0.5)
-            yield symbol
-
-    async for value in generator():
-        print(f"\r{value}", end="")
-
-
 class FindCommand(Command):
-    def __init__(self, find_args: FindArgs):
+    def __init__(self, find_args: FindArgs, link_service: LinkService, metainfo_files: Set[MetainfoFile]):
         self.find_args = find_args
+        self.link_service = link_service
+        self.metainfo_files = metainfo_files
 
     def run(self) -> FindOutput:
-        task = asyncio.run(search_task(self.find_args), debug=True)
-        return task
-
-
-async def verifying_search_task(find_args: FindArgs) -> FindOutput:
-    searcher = find_args.get_async_searcher()
-    data_dirs = find_args.get_data_dirs()
-    torrent_files = find_args.get_torrent_files()
-    loop = asyncio.get_event_loop()
-    loop.set_debug(enabled=True)
-    task = asyncio.create_task(searcher.get_matches(torrent_files, data_dirs))
-    animation_task = asyncio.create_task(waiting_animation())
-    search_result: SearchResult = await task
-    animation_task.cancel()
-    return FindOutput(search_result)
-
-
-async def search_task(find_args: FindArgs):
-    searcher = find_args.get_name_matching_searcher()
-    data_dirs = find_args.get_data_dirs()
-    torrent_files = find_args.get_torrent_files()
-    loop = asyncio.get_event_loop()
-    loop.set_debug(enabled=True)
-    task = asyncio.create_task(searcher.get_matches(torrent_files, data_dirs))
-    animation_task = asyncio.create_task(waiting_animation())
-    search_result: SearchResult = await task
-    animation_task.cancel()
-    return FindOutput(search_result)
+        linked, rest = self.link_service.find(self.metainfo_files)
+        output = FindOutput(linked, rest)
+        return output
