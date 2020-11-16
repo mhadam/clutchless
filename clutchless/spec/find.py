@@ -15,13 +15,15 @@ from typing import Mapping, Set
 
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
+from clutchless.external.metainfo import MetainfoReader
 from clutchless.service.file import collect_metainfo_files
 from clutchless.spec.shared import DataDirectoryParser
 
 
 class FindArgs:
-    def __init__(self, args: Mapping, fs: Filesystem):
+    def __init__(self, args: Mapping, reader: MetainfoReader, fs: Filesystem):
         self.args = args
+        self.reader = reader
         self.fs = fs
 
     def get_data_dirs(self) -> Set[Path]:
@@ -36,5 +38,5 @@ class FindArgs:
     def get_torrent_files(self) -> Set[MetainfoFile]:
         torrent_file_paths = self.get_torrent_files_paths()
         return {
-            MetainfoFile.from_path(torrent_file) for torrent_file in torrent_file_paths
+            self.reader.from_path(torrent_file) for torrent_file in torrent_file_paths
         }

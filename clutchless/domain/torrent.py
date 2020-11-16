@@ -1,10 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence, Mapping, MutableMapping, Optional
-
-from torrentool.torrent import Torrent as ExternalTorrent
-
-from clutchless.external.filesystem import Filesystem
+from typing import Sequence, Mapping, MutableMapping, Iterable
 
 
 @dataclass
@@ -25,17 +21,6 @@ class MetainfoFile:
         self.path = path
         self._properties = properties
 
-    @classmethod
-    def from_path(cls, path: Path) -> "MetainfoFile":
-        external_torrent = ExternalTorrent.from_file(str(path))
-        torrent_file = MetainfoFile({}, path)
-        for prop in cls.PROPERTIES:
-            torrent_file._properties[prop] = getattr(external_torrent, prop)
-        torrent_file._properties["info"] = (
-                external_torrent._struct.get("info") or dict()
-        )
-        return torrent_file
-
     @property
     def name(self) -> str:
         return self._properties["name"]
@@ -46,6 +31,7 @@ class MetainfoFile:
 
     @property
     def files(self) -> Sequence[TorrentFile]:
+        """These are defined relative a directory named by 'name' property, i.e. data_location/torrent_name/{file...}"""
         files = self.info.get("files")
         return [convert_file(file) for file in files]
 
@@ -63,6 +49,10 @@ class MetainfoFile:
         self.__validate_file_torrent_check(is_length_present, is_files_present)
         return is_length_present
 
+    @property
+    def is_multifile(self) -> bool:
+        return not self.is_single_file
+
     @staticmethod
     def __validate_file_torrent_check(is_length_present: bool, is_files_present: bool):
         def xnor(a: bool, b: bool) -> bool:
@@ -73,27 +63,12 @@ class MetainfoFile:
                 "must contain either length key or files key, not both or neither"
             )
 
-    def verify(self, fs: Filesystem, path: Path) -> bool:
+    def needed_files(self, path: Path) -> Iterable[Path]:
+        filepath = path / self.name
         if self.is_single_file:
-            filepath = path / self.name
-            return fs.is_file(filepath)
+            yield filepath
         else:
-
-            def verify(file: TorrentFile) -> bool:
-                return fs.is_file(path / self.name / file.path)
-
-            verifieds = [verify(file) for file in self.files]
-            return all(verifieds)
-
-    def find(self, fs: Filesystem, path: Path) -> Optional[Path]:
-        found = fs.find(path, self.name, not self.is_single_file)
-        if found and self.verify(fs, found):
-            return found.parent
-
-    def link(self, fs: Filesystem, path: Path) -> Optional['LinkedMetainfo']:
-        found = self.find(fs, path)
-        if found:
-            return LinkedMetainfo(self, found)
+            yield from [filepath / file.path for file in self.files]
 
     def __str__(self):
         return f"{self.name}"
@@ -112,9 +87,3 @@ class MetainfoFile:
 
     def __hash__(self):
         return hash(self.info_hash)
-
-
-@dataclass(frozen=True)
-class LinkedMetainfo:
-    metainfo_file: MetainfoFile
-    data: Path

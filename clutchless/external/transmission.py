@@ -55,10 +55,16 @@ class TransmissionApi(Protocol):
     def add_torrent_with_files(self, file: Path, download_dir: Path) -> CommandResult:
         raise NotImplementedError
 
+    def get_torrent_name_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, str]]:
+        raise NotImplementedError
+
     def get_partial_torrents(self) -> QueryResult[Mapping[str, PartialTorrent]]:
         raise NotImplementedError
 
     def get_incomplete_ids(self) -> QueryResult[Set[int]]:
+        raise NotImplementedError
+
+    def get_metainfo_file_paths_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, Path]]:
         raise NotImplementedError
 
     def get_incomplete_torrent_files(self) -> QueryResult[Set[Path]]:
@@ -131,6 +137,15 @@ class ClutchApi(TransmissionApi):
             return CommandResult(error="duplicate torrent", success=False)
         return CommandResult(error="unknown error", success=False)
 
+    def get_torrent_name_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, str]]:
+        response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
+            fields=["id", "percent_done", "name"],
+            ids=ids
+        )
+        if response.result != "success":
+            return QueryResult(success=False, error=response.result)
+        return QueryResult({torrent.id: torrent.name for torrent in response.arguments.torrents})
+
     def get_partial_torrents(self) -> QueryResult[Mapping[str, PartialTorrent]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
             fields=["hash_string", "wanted", "files"]
@@ -156,6 +171,18 @@ class ClutchApi(TransmissionApi):
         return QueryResult(
             value={
                 torrent.id for torrent in response_torrents if torrent.percent_done == 0.0
+            }
+        )
+
+    def get_metainfo_file_paths_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, Path]]:
+        response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
+            fields=["torrent_file", "percent_done"]
+        )
+        response_torrents: Sequence[TorrentAccessorObject] = response.arguments.torrents
+        return QueryResult(
+            value={
+                torrent.id: torrent.torrent_file
+                for torrent in response_torrents
             }
         )
 
@@ -217,6 +244,7 @@ class ClutchApi(TransmissionApi):
         )
         if response.result != "success":
             return CommandResult(success=False)
+        return CommandResult()
 
     def get_torrent_location(self, torrent_id: int) -> QueryResult[Path]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(

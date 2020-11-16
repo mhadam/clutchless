@@ -3,18 +3,19 @@ from typing import Set
 from colorama import init, deinit, Fore
 
 from clutchless.command.command import Command, CommandOutput
-from clutchless.domain.torrent import MetainfoFile, LinkedMetainfo
-from clutchless.service.torrent import LinkService
+from clutchless.domain.torrent import MetainfoFile
+from clutchless.external.metainfo import TorrentData
+from clutchless.service.torrent import FindService
 from clutchless.spec.find import FindArgs
 
 
 class FindOutput(CommandOutput):
-    def __init__(self, found: Set[LinkedMetainfo], missing: Set[MetainfoFile]):
+    def __init__(self, found: Set[TorrentData], missing: Set[MetainfoFile]):
         self.found = found
         self.missing = missing
 
     @staticmethod
-    def print_found(found: LinkedMetainfo):
+    def print_found(found: TorrentData):
         name = found.metainfo_file.name
         path = found.metainfo_file.path
         print(
@@ -41,7 +42,7 @@ class FindOutput(CommandOutput):
 
 
 class FindCommand(Command):
-    def __init__(self, find_args: FindArgs, link_service: LinkService, metainfo_files: Set[MetainfoFile]):
+    def __init__(self, find_args: FindArgs, link_service: FindService, metainfo_files: Set[MetainfoFile]):
         self.find_args = find_args
         self.link_service = link_service
         self.metainfo_files = metainfo_files

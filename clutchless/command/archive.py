@@ -1,91 +1,91 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from shutil import copy
-from typing import Mapping, MutableMapping, MutableSequence, Sequence
+from typing import Mapping, MutableMapping, Set, MutableSequence, Optional, Sequence
 
-from clutchless.command.command import Command, CommandOutput, CommandOutputAccumulator
+from clutchless.command.command import Command, CommandOutput
+from clutchless.external.filesystem import Filesystem, CopyError
+from clutchless.external.result import QueryResult
 from clutchless.external.transmission import TransmissionApi
 
 
-@dataclass
-class ArchiveCount:
-    archived: int
-    existing: int
+@dataclass(frozen=True)
+class ArchiveAction:
+    torrent_id: int
+    name: str
+    source: Path
 
 
 @dataclass
 class ArchiveOutput(CommandOutput):
-    copied: MutableMapping[int, Path] = field(default_factory=dict)
-    already_exist: MutableSequence["ArchiveAlreadyExists"] = field(default_factory=list)
+    actions: Sequence[ArchiveAction] = field(default_factory=list)
+    copied: Set[int] = field(default_factory=set)
+    copy_failure: MutableMapping[int, str] = field(default_factory=dict)
+    query_failure: Optional[str] = None
 
     def display(self):
-        for (torrent_id, path) in self.copied.items():
-            print(f"Copied {torrent_id} to {path}")
-        for event in self.already_exist:
-            print(
-                f"Already exists {event.torrent_id} at {event.copied_path} because {event.error}"
-            )
+        if self.query_failure is not None:
+            print(f"Query failed: {self.query_failure}")
+        else:
+            for action in self.actions:
+                if action.torrent_id in self.copied:
+                    print(f"Copied {action.name}")
+                if action.torrent_id in self.copy_failure:
+                    error = self.copy_failure[action.torrent_id]
+                    print(
+                        f"Failed to move {action.source} because: {error}"
+                    )
 
 
-@dataclass
-class ArchiveCopied(CommandOutputAccumulator):
-    torrent_id: int
-    copied_path: Path
-
-    def accumulate(self, result: ArchiveOutput):
-        result.copied[self.torrent_id] = self.copied_path
-
-
-@dataclass
-class ArchiveAlreadyExists(CommandOutputAccumulator):
-    torrent_id: int
-    copied_path: Path
-    error: str
-
-    def accumulate(self, result: ArchiveOutput):
-        result.already_exist.append(self)
+def create_archive_actions(torrent_file_by_id: Mapping[int, Path], torrent_name_by_id: Mapping[int, str]) -> Sequence[ArchiveAction]:
+    result: MutableSequence[ArchiveAction] = []
+    for (torrent_id, source) in torrent_file_by_id.items():
+        name = torrent_name_by_id[torrent_id]
+        result.append(ArchiveAction(torrent_id, name, source))
+    return result
 
 
-class CopyError(Exception):
-    pass
+def handle_action(fs: Filesystem, archive_path: Path, output: ArchiveOutput, action: ArchiveAction) -> ArchiveOutput:
+    try:
+        fs.copy(action.source, archive_path)
+        return replace(output, copied={*output.copied, action.torrent_id})
+    except CopyError as e:
+        return replace(output, copy_failure={**output.copy_failure, action.torrent_id: str(e)})
+
+
+def handle_data(fs: Filesystem, archive_path: Path, torrent_file_by_id: Mapping[int, Path], torrent_name_by_id: Mapping[int, str]) -> ArchiveOutput:
+    actions = create_archive_actions(torrent_file_by_id, torrent_name_by_id)
+    output = ArchiveOutput(actions=actions)
+    for action in actions:
+        output = handle_action(fs, archive_path, output, action)
+    return output
 
 
 class ArchiveCommand(Command):
-    def __init__(self, archive_path: Path, client: TransmissionApi):
+    def __init__(self, archive_path: Path, fs: Filesystem, client: TransmissionApi):
         self.client = client
+        self.fs = fs
         self.archive_path = archive_path
 
-    def run(self) -> CommandOutput:
-        result = ArchiveOutput()
-        for accumulator in self.__collect_accumulators():
-            accumulator.accumulate(result)
-        return result
+    def __get_torrent_file_by_id(self) -> Mapping[int, Path]:
+        query_result: QueryResult[Mapping[int, Path]] = self.client.get_torrent_files_by_id()
+        if query_result.success:
+            return query_result.value
+        raise RuntimeError("query failed: get_torrent_files_by_id")
 
-    def __collect_accumulators(self) -> Sequence[CommandOutputAccumulator]:
-        accumulators: MutableSequence[CommandOutputAccumulator] = []
-        torrent_files_by_id = self.__get_torrent_files_by_id()
-        for (torrent_id, torrent_file) in torrent_files_by_id.items():
-            new_path: Path = self.__get_new_path(torrent_file)
-            try:
-                self.__copy_torrent_file(torrent_file, new_path)
-                accumulators.append(ArchiveCopied(torrent_id, new_path))
-            except CopyError as e:
-                accumulators.append(ArchiveAlreadyExists(torrent_id, new_path, str(e)))
-        return accumulators
+    def __get_torrent_name_by_id(self, ids: Set[int]) -> Mapping[int, str]:
+        query_result: QueryResult[Mapping[int, str]] = self.client.get_torrent_name_by_id(ids)
+        if query_result.success:
+            return query_result.value
+        raise RuntimeError("query failed: get_torrent_name_by_id")
 
-    def __get_torrent_files_by_id(self) -> Mapping[int, Path]:
-        return self.client.get_torrent_files_by_id()
+    def run(self) -> ArchiveOutput:
+        try:
+            torrent_file_by_id = self.__get_torrent_file_by_id()
+            ids = set(torrent_file_by_id.keys())
+            torrent_name_by_id = self.__get_torrent_name_by_id(ids)
+        except RuntimeError as e:
+            return ArchiveOutput(query_failure=str(e))
 
-    def __get_new_path(self, torrent_file: Path) -> Path:
-        file_part = torrent_file.name
-        return Path(self.archive_path, file_part)
+        self.fs.create_dir(self.archive_path)
+        return handle_data(self.fs, self.archive_path, torrent_file_by_id, torrent_name_by_id)
 
-    def __copy_torrent_file(self, torrent_file: Path, new_path: Path):
-        if new_path.exists():
-            raise CopyError(f"{new_path} already exists")
-        copy(torrent_file, new_path)
-
-    def __create_archive_path(self):
-        path = self.archive_path
-        if not path.exists():
-            path.mkdir(parents=True, exist_ok=True)

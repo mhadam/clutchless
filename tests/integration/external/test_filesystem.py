@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from clutchless.external.filesystem import DefaultFilesystem
+from clutchless.external.filesystem import DefaultFilesystem, FileLocator, DefaultFileLocator
 
 
 def test_default_filesystem_file(tmp_path):
@@ -33,12 +33,13 @@ def test_default_filesystem_children(tmp_path):
     assert set(children) == expected_children
 
 
-def test_default_filesystem_find_file(tmp_path):
+def test_default_locator_find_file(tmp_path):
     file = tmp_path / "test_file"
     file.touch()
     fs = DefaultFilesystem()
+    locator: FileLocator = DefaultFileLocator(fs, tmp_path)
 
-    result = fs.find(tmp_path, "test_file")
+    result = locator.locate("test_file")
 
     assert result == tmp_path
 
@@ -47,7 +48,8 @@ def test_default_filesystem_find_directory(tmp_path):
     file = tmp_path / "test_dir"
     file.mkdir(parents=True)
     fs = DefaultFilesystem()
+    locator: FileLocator = DefaultFileLocator(fs, tmp_path)
 
-    result = fs.find(tmp_path, "test_dir", True)
+    result = locator.locate("test_dir", True)
 
     assert result == tmp_path

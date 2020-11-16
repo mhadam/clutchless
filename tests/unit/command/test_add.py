@@ -5,9 +5,10 @@ from pytest_mock import MockerFixture
 from clutchless.command.add import AddCommand, AddOutput, LinkingAddCommand, LinkingAddOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
+from clutchless.external.metainfo import TorrentDataLocator, DefaultTorrentDataLocator
 from clutchless.external.result import CommandResult
 from clutchless.external.transmission import TransmissionApi
-from clutchless.service.torrent import AddService, LinkService
+from clutchless.service.torrent import AddService, FindService
 
 
 def test_add_run_success(mocker: MockerFixture):
@@ -62,9 +63,16 @@ def test_add_linking_unknown(mocker: MockerFixture):
     add_service = AddService(api)
 
     fs = mocker.Mock(spec=Filesystem)
-    find_service = LinkService(fs, set())
+    locator: TorrentDataLocator = DefaultTorrentDataLocator(fs)
+    find_service = FindService(locator)
     metainfo_path = Path('/', 'test_path')
-    metainfo_file = MetainfoFile({'info_hash': 'meaningless and necessary'}, metainfo_path)
+    metainfo_file = MetainfoFile({
+        'name': 'meaningless',
+        'info_hash': 'meaningless and necessary',
+        'info': {
+            'length': 5
+        }
+    }, metainfo_path)
     command = LinkingAddCommand(find_service, add_service, fs, {metainfo_file})
 
     output: LinkingAddOutput = command.run()
@@ -81,9 +89,19 @@ def test_add_linking_success(mocker: MockerFixture):
     add_service = AddService(api)
 
     fs = mocker.Mock(spec=Filesystem)
-    find_service = LinkService(fs, set())
+    locator: TorrentDataLocator = DefaultTorrentDataLocator(fs)
+    find_service = FindService(locator)
     metainfo_path = Path('/', 'test_path')
-    metainfo_file = MetainfoFile({'info_hash': 'meaningless and necessary'}, metainfo_path)
+    metainfo_file = MetainfoFile(
+        {
+            'name': 'meaningless',
+            'info_hash': 'meaningless and necessary',
+            'info': {
+                'length': 5
+            }
+        },
+        metainfo_path
+    )
     command = LinkingAddCommand(find_service, add_service, fs, {metainfo_file})
 
     output: LinkingAddOutput = command.run()
@@ -100,9 +118,16 @@ def test_add_linking_duplicate(mocker: MockerFixture):
     add_service = AddService(api)
 
     fs = mocker.Mock(spec=Filesystem)
-    find_service = LinkService(fs, set())
+    locator: TorrentDataLocator = DefaultTorrentDataLocator(fs)
+    find_service = FindService(locator)
     metainfo_path = Path('/', 'test_path')
-    metainfo_file = MetainfoFile({'info_hash': 'meaningless and necessary'}, metainfo_path)
+    metainfo_file = MetainfoFile({
+        'name': 'meaningless',
+        'info_hash': 'meaningless and necessary',
+        'info': {
+            'length': 5
+        }
+    }, metainfo_path)
     command = LinkingAddCommand(find_service, add_service, fs, {metainfo_file})
 
     output: LinkingAddOutput = command.run()

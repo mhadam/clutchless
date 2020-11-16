@@ -5,7 +5,7 @@ from typing import MutableMapping, MutableSequence, Set, Sequence
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
-from clutchless.service.torrent import AddService, LinkService
+from clutchless.service.torrent import AddService, FindService
 
 
 @dataclass
@@ -79,8 +79,8 @@ class AddCommand(Command):
 
 
 class LinkingAddCommand(Command):
-    def __init__(self, link_service: LinkService, add_service: AddService, fs: Filesystem, metainfo_files: Set[MetainfoFile]):
-        self.link_service = link_service
+    def __init__(self, find_service: FindService, add_service: AddService, fs: Filesystem, metainfo_files: Set[MetainfoFile]):
+        self.find_service = find_service
         self.add_service = add_service
         self.fs = fs
         self.metainfo_files = metainfo_files
@@ -93,9 +93,9 @@ class LinkingAddCommand(Command):
         return output
 
     def run(self) -> LinkingAddOutput:
-        linked, rest = self.link_service.find(self.metainfo_files)
+        linked, rest = self.find_service.find(self.metainfo_files)
         for file in linked:
-            self.add_service.add_with_data(file.metainfo_file.path, file.data)
+            self.add_service.add_with_data(file.metainfo_file.path, file.location)
         for file in rest:
             self.add_service.add(file.path)
         for path in self.add_service.success:

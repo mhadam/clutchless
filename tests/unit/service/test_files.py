@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pytest_mock import MockerFixture
 
-from clutchless.external.filesystem import Filesystem
+from clutchless.external.filesystem import Filesystem, FileLocator
 from clutchless.service.file import collect_metainfo_files
 
 
@@ -41,9 +41,11 @@ def test_collect_metainfo_files(mocker: MockerFixture):
     filesystem.is_file.side_effect = lambda path: path in files
     filesystem.is_directory.side_effect = lambda path: path in directories
     filesystem.children.side_effect = lambda path: children.get(path)
-    filesystem.collect.return_value = {Path("/some_path/child1/file2.torrent")}
 
-    result = collect_metainfo_files(filesystem, raw_paths)
+    locator = mocker.Mock(spec=FileLocator)
+    locator.collect.return_value = {Path("/some_path/child1/file2.torrent")}
+
+    result = collect_metainfo_files(filesystem, locator, raw_paths)
 
     assert set(result) == {
         Path("/another_path/file.torrent"),
