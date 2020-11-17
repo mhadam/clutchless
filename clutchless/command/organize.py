@@ -41,10 +41,10 @@ from clutchless.external.transmission import TransmissionApi, TransmissionError
 #
 #
 # class OrganizeCommand(Command):
-#     def __init__(self, raw_spec: str, new_path: Path, client: TransmissionApi):
+#     def __init__(self, raw_spec: str, new_path: Path, organize_service: OrganizeService):
 #         self.raw_spec = raw_spec
-#         self.client = client
 #         self.new_path = new_path
+#         self.organize_service = organize_service
 #
 #     def run(self) -> OrganizeCommandResult:
 #         result = OrganizeCommandResult()
