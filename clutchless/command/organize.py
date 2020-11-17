@@ -6,6 +6,7 @@ from typing import Set, Sequence, Mapping, Iterable, Tuple
 from texttable import Texttable
 
 from clutchless.command.command import Command, CommandOutput
+from clutchless.domain.torrent import MetainfoFile
 from clutchless.service.torrent import OrganizeService
 from clutchless.spec.organize import TrackerSpec
 
@@ -13,6 +14,7 @@ from clutchless.spec.organize import TrackerSpec
 @dataclass
 class OrganizeSuccess:
     torrent_id: int
+    metainfo_file: MetainfoFile
     new_path: Path
     old_path: Path
 
@@ -20,6 +22,7 @@ class OrganizeSuccess:
 @dataclass
 class OrganizeFailure:
     torrent_id: int
+    metainfo_file: MetainfoFile
     failure: str
 
 
@@ -29,7 +32,18 @@ class OrganizeCommandOutput(CommandOutput):
     failure: Sequence[OrganizeFailure] = field(default_factory=list)
 
     def display(self):
-        pass
+        success_count = len(self.success)
+        failure_count = len(self.failure)
+        if success_count > 0:
+            print("Organized these torrents:")
+            for success in self.success:
+                metainfo = success.metainfo_file
+                print(f"{metainfo.name} moved from {success.old_path} to {success.new_path}")
+        if failure_count > 0:
+            print("Failed to organize these torrents:")
+            for failure in self.failure:
+                metainfo = failure.metainfo_file
+                print(f"{metainfo.name} because of: {failure.failure}")
 
 
 @dataclass
@@ -47,9 +61,8 @@ class OrganizeCommand(Command):
         self.organize_service = organize_service
 
     def run(self) -> OrganizeCommandOutput:
-        announce_url_to_folder_name: Mapping[
-            str, str
-        ] = self.__get_announce_url_to_folder_name()
+        overrides = TrackerSpec(self.raw_spec)
+        announce_url_to_folder_name = self.organize_service.get_folder_name_by_url(overrides)
         announce_urls_by_torrent_id = (
             self.organize_service.get_announce_urls_by_torrent_id()
         )
@@ -71,10 +84,6 @@ class OrganizeCommand(Command):
             new_path = Path(self.new_path, folder_name)
             yield OrganizeAction(new_path, torrent_id)
 
-    def __get_announce_url_to_folder_name(self) -> Mapping[str, str]:
-        overrides = TrackerSpec(self.raw_spec)
-        return self.organize_service.get_folder_name_by_url(overrides)
-
     @staticmethod
     def _get_folder_name(
         urls: Iterable[str], folder_name_by_announce_url: Mapping[str, str]
@@ -94,12 +103,13 @@ class OrganizeCommand(Command):
         for action in actions:
             torrent_id = action.torrent_id
             new_path = action.new_path
+            metainfo_file = self.organize_service.get_metainfo_file(torrent_id)
             try:
                 old_path = self.organize_service.get_torrent_location(torrent_id)
                 self.organize_service.move_location(torrent_id, new_path)
-                success.append(OrganizeSuccess(torrent_id, new_path, old_path))
+                success.append(OrganizeSuccess(torrent_id, metainfo_file, new_path, old_path))
             except RuntimeError as e:
-                failure.append(OrganizeFailure(torrent_id, str(e)))
+                failure.append(OrganizeFailure(torrent_id, metainfo_file, str(e)))
         return success, failure
 
 

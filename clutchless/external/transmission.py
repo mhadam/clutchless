@@ -64,6 +64,9 @@ class TransmissionApi(Protocol):
     def get_incomplete_ids(self) -> QueryResult[Set[int]]:
         raise NotImplementedError
 
+    def get_metainfo_file_path(self, torrent_id: int) -> QueryResult[Path]:
+        raise NotImplementedError
+
     def get_metainfo_file_paths_by_id(
         self, ids: Set[int]
     ) -> QueryResult[Mapping[int, Path]]:
@@ -179,6 +182,17 @@ class ClutchApi(TransmissionApi):
                 for torrent in response_torrents
                 if torrent.percent_done == 0.0
             }
+        )
+
+    def get_metainfo_file_path(self, torrent_id: int) -> QueryResult[Path]:
+        response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
+            fields=["torrent_file"]
+        )
+        response_torrents: Sequence[TorrentAccessorObject] = response.arguments.torrents
+        if len(response_torrents) != 1:
+            return QueryResult(error="expected only one result", success=False)
+        return QueryResult(
+            value=Path(response_torrents[0].torrent_file)
         )
 
     def get_metainfo_file_paths_by_id(

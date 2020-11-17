@@ -152,8 +152,9 @@ class OrganizeService:
     shortened and camelcase hostname -> announce urls(sorted too)
     """
 
-    def __init__(self, client: TransmissionApi):
+    def __init__(self, client: TransmissionApi, metainfo_reader: MetainfoReader):
         self.client = client
+        self.metainfo_reader = metainfo_reader
 
     def get_announce_urls_by_folder_name(self) -> "OrderedDict[str, Sequence[str]]":
         query_result: QueryResult[Set[str]] = self.client.get_announce_urls()
@@ -232,3 +233,9 @@ class OrganizeService:
         if not result.success:
             raise RuntimeError("get_torrent_location query failed")
         return result.value
+
+    def get_metainfo_file(self, torrent_id: int) -> MetainfoFile:
+        result: QueryResult[Path] = self.client.get_metainfo_file_path(torrent_id)
+        if not result.success:
+            raise RuntimeError("get_torrent_location query failed")
+        return self.metainfo_reader.from_path(result.value)
