@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from clutchless.external.filesystem import DefaultFilesystem, FileLocator, DefaultFileLocator
+from clutchless.external.filesystem import (
+    DefaultFilesystem,
+    FileLocator,
+    DefaultFileLocator,
+)
 
 
 def test_default_filesystem_file(tmp_path):

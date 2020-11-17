@@ -31,12 +31,12 @@ class ArchiveOutput(CommandOutput):
                     print(f"Copied {action.name}")
                 if action.torrent_id in self.copy_failure:
                     error = self.copy_failure[action.torrent_id]
-                    print(
-                        f"Failed to move {action.source} because: {error}"
-                    )
+                    print(f"Failed to move {action.source} because: {error}")
 
 
-def create_archive_actions(torrent_file_by_id: Mapping[int, Path], torrent_name_by_id: Mapping[int, str]) -> Sequence[ArchiveAction]:
+def create_archive_actions(
+    torrent_file_by_id: Mapping[int, Path], torrent_name_by_id: Mapping[int, str]
+) -> Sequence[ArchiveAction]:
     result: MutableSequence[ArchiveAction] = []
     for (torrent_id, source) in torrent_file_by_id.items():
         name = torrent_name_by_id[torrent_id]
@@ -44,15 +44,24 @@ def create_archive_actions(torrent_file_by_id: Mapping[int, Path], torrent_name_
     return result
 
 
-def handle_action(fs: Filesystem, archive_path: Path, output: ArchiveOutput, action: ArchiveAction) -> ArchiveOutput:
+def handle_action(
+    fs: Filesystem, archive_path: Path, output: ArchiveOutput, action: ArchiveAction
+) -> ArchiveOutput:
     try:
         fs.copy(action.source, archive_path)
         return replace(output, copied={*output.copied, action.torrent_id})
     except CopyError as e:
-        return replace(output, copy_failure={**output.copy_failure, action.torrent_id: str(e)})
+        return replace(
+            output, copy_failure={**output.copy_failure, action.torrent_id: str(e)}
+        )
 
 
-def handle_data(fs: Filesystem, archive_path: Path, torrent_file_by_id: Mapping[int, Path], torrent_name_by_id: Mapping[int, str]) -> ArchiveOutput:
+def handle_data(
+    fs: Filesystem,
+    archive_path: Path,
+    torrent_file_by_id: Mapping[int, Path],
+    torrent_name_by_id: Mapping[int, str],
+) -> ArchiveOutput:
     actions = create_archive_actions(torrent_file_by_id, torrent_name_by_id)
     output = ArchiveOutput(actions=actions)
     for action in actions:
@@ -67,13 +76,17 @@ class ArchiveCommand(Command):
         self.archive_path = archive_path
 
     def __get_torrent_file_by_id(self) -> Mapping[int, Path]:
-        query_result: QueryResult[Mapping[int, Path]] = self.client.get_torrent_files_by_id()
+        query_result: QueryResult[
+            Mapping[int, Path]
+        ] = self.client.get_torrent_files_by_id()
         if query_result.success:
             return query_result.value
         raise RuntimeError("query failed: get_torrent_files_by_id")
 
     def __get_torrent_name_by_id(self, ids: Set[int]) -> Mapping[int, str]:
-        query_result: QueryResult[Mapping[int, str]] = self.client.get_torrent_name_by_id(ids)
+        query_result: QueryResult[
+            Mapping[int, str]
+        ] = self.client.get_torrent_name_by_id(ids)
         if query_result.success:
             return query_result.value
         raise RuntimeError("query failed: get_torrent_name_by_id")
@@ -87,5 +100,6 @@ class ArchiveCommand(Command):
             return ArchiveOutput(query_failure=str(e))
 
         self.fs.create_dir(self.archive_path)
-        return handle_data(self.fs, self.archive_path, torrent_file_by_id, torrent_name_by_id)
-
+        return handle_data(
+            self.fs, self.archive_path, torrent_file_by_id, torrent_name_by_id
+        )

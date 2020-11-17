@@ -24,17 +24,24 @@ class LinkCommandOutput(CommandOutput):
 
 
 class LinkCommand(Command):
-
     def __init__(self, link_service: LinkService, find_service: FindService):
         self.link_service = link_service
         self.find_service = find_service
 
-    def change_location(self, torrent_id_by_metainfo_file: Mapping[MetainfoFile, int], torrent_data: TorrentData):
+    def change_location(
+        self,
+        torrent_id_by_metainfo_file: Mapping[MetainfoFile, int],
+        torrent_data: TorrentData,
+    ):
         torrent_id = torrent_id_by_metainfo_file[torrent_data.metainfo_file]
         new_path = torrent_data.location
         self.link_service.change_location(torrent_id, new_path)
 
-    def handle_found(self, found: Set[TorrentData], torrent_id_by_metainfo_file: Mapping[MetainfoFile, int]) -> Tuple[Sequence[TorrentData], Sequence[LinkFailure]]:
+    def handle_found(
+        self,
+        found: Set[TorrentData],
+        torrent_id_by_metainfo_file: Mapping[MetainfoFile, int],
+    ) -> Tuple[Sequence[TorrentData], Sequence[LinkFailure]]:
         success: MutableSequence[TorrentData] = []
         error: MutableSequence[LinkFailure] = []
         for torrent_data in found:
@@ -46,7 +53,9 @@ class LinkCommand(Command):
         return success, error
 
     def run(self) -> LinkCommandOutput:
-        torrent_id_by_metainfo_file = self.link_service.get_incomplete_id_by_metainfo_file()
+        torrent_id_by_metainfo_file = (
+            self.link_service.get_incomplete_id_by_metainfo_file()
+        )
         metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
         found, rest = self.find_service.find(metainfo_files)
         success, failure = self.handle_found(found, torrent_id_by_metainfo_file)
@@ -82,7 +91,9 @@ class ListLinkCommand(Command):
         self.find_service = find_service
 
     def run(self) -> LinkListCommandResult:
-        torrent_id_by_metainfo_file = self.link_service.get_incomplete_id_by_metainfo_file()
+        torrent_id_by_metainfo_file = (
+            self.link_service.get_incomplete_id_by_metainfo_file()
+        )
         metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
         found, rest = self.find_service.find(metainfo_files)
         return LinkListCommandResult(found, rest)

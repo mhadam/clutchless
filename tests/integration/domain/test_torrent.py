@@ -1,7 +1,11 @@
 from clutchless.domain.torrent import MetainfoFile
 
 from clutchless.external.filesystem import DefaultFilesystem
-from clutchless.external.metainfo import DefaultMetainfoReader, MetainfoReader, DefaultTorrentDataReader
+from clutchless.external.metainfo import (
+    DefaultMetainfoReader,
+    MetainfoReader,
+    DefaultTorrentDataReader,
+)
 
 
 def test_metainfo_multifile_load(datadir):

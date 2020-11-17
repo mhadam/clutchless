@@ -4,7 +4,9 @@ from typing import Iterable, Set
 from clutchless.external.filesystem import FileLocator, Filesystem
 
 
-def collect_metainfo_files(fs: Filesystem, locator: FileLocator, raw_paths: Set[str]) -> Set[Path]:
+def collect_metainfo_files(
+    fs: Filesystem, locator: FileLocator, raw_paths: Set[str]
+) -> Set[Path]:
     def generate_paths() -> Iterable[Path]:
         for raw_path in raw_paths:
             path = Path(raw_path)

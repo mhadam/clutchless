@@ -16,7 +16,9 @@ class MetainfoReader(Protocol):
 class DefaultMetainfoReader(MetainfoReader):
     def from_path(self, path: Path) -> MetainfoFile:
         external_torrent = ExternalTorrent.from_file(str(path))
-        properties = {prop: getattr(external_torrent, prop) for prop in MetainfoFile.PROPERTIES}
+        properties = {
+            prop: getattr(external_torrent, prop) for prop in MetainfoFile.PROPERTIES
+        }
         properties["info"] = external_torrent._struct.get("info") or dict()
         return MetainfoFile(properties, path)
 

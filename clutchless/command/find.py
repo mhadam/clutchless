@@ -18,9 +18,7 @@ class FindOutput(CommandOutput):
     def print_found(found: TorrentData):
         name = found.metainfo_file.name
         path = found.metainfo_file.path
-        print(
-            Fore.GREEN + f"\N{check mark} {name} at {path}"
-        )
+        print(Fore.GREEN + f"\N{check mark} {name} at {path}")
 
     @staticmethod
     def print_missing(torrent: MetainfoFile):
@@ -42,7 +40,12 @@ class FindOutput(CommandOutput):
 
 
 class FindCommand(Command):
-    def __init__(self, find_args: FindArgs, link_service: FindService, metainfo_files: Set[MetainfoFile]):
+    def __init__(
+        self,
+        find_args: FindArgs,
+        link_service: FindService,
+        metainfo_files: Set[MetainfoFile],
+    ):
         self.find_args = find_args
         self.link_service = link_service
         self.metainfo_files = metainfo_files

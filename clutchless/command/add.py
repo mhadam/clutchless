@@ -43,7 +43,9 @@ class LinkingAddOutput(CommandOutput):
             # related to fs.remove
             self.deleted_torrents.append(path)
 
-    def add_linked_successes(self, metainfo_path: Sequence[Path], data_path: Sequence[Path]):
+    def add_linked_successes(
+        self, metainfo_path: Sequence[Path], data_path: Sequence[Path]
+    ):
         # handle linked
         for (metainfo_path, data_path) in zip(metainfo_path, data_path):
             self.linked_torrents[metainfo_path] = data_path
@@ -79,7 +81,13 @@ class AddCommand(Command):
 
 
 class LinkingAddCommand(Command):
-    def __init__(self, find_service: FindService, add_service: AddService, fs: Filesystem, metainfo_files: Set[MetainfoFile]):
+    def __init__(
+        self,
+        find_service: FindService,
+        add_service: AddService,
+        fs: Filesystem,
+        metainfo_files: Set[MetainfoFile],
+    ):
         self.find_service = find_service
         self.add_service = add_service
         self.fs = fs

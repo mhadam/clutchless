@@ -26,6 +26,7 @@ class DataDirectoryParser:
             paths = [Path(data_dir) for data_dir in data_dirs]
             for path in paths:
                 yield from self.__handle_path(path)
+
         return set(generate())
 
     def __handle_path(self, path: Path) -> Set[Path]:
@@ -42,4 +43,3 @@ class DataDirectoryParser:
     def __reject_non_dir(self, path: Path):
         if not self.fs.is_directory(path):
             raise ValueError("Supplied data path isn't a directory")
-

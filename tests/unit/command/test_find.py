@@ -5,20 +5,23 @@ from pytest_mock import MockerFixture
 from clutchless.command.find import FindCommand
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
-from clutchless.external.metainfo import TorrentData, TorrentDataLocator, DefaultTorrentDataLocator, MetainfoReader
+from clutchless.external.metainfo import (
+    TorrentData,
+    TorrentDataLocator,
+    DefaultTorrentDataLocator,
+    MetainfoReader,
+)
 from clutchless.service.torrent import FindService
 from clutchless.spec.find import FindArgs
 
 
 def test_find_found(mocker: MockerFixture):
-    metainfo_path = Path('/', 'metainfo.torrent')
-    search_path = Path('/', 'data')
+    metainfo_path = Path("/", "metainfo.torrent")
+    search_path = Path("/", "data")
     properties = {
-        'info_hash': 'meaningless and necessary',
-        'name': 'test_name',
-        'info': {
-            'length': 0
-        }
+        "info_hash": "meaningless and necessary",
+        "name": "test_name",
+        "info": {"length": 0},
     }
     metainfo_file = MetainfoFile(properties, metainfo_path)
     fs = mocker.Mock(spec=Filesystem)
@@ -27,7 +30,7 @@ def test_find_found(mocker: MockerFixture):
     find_args = FindArgs({}, reader, fs)
 
     locator = mocker.Mock(spec=TorrentDataLocator)
-    locator.find.return_value = TorrentData(metainfo_file, Path('/', 'data'))
+    locator.find.return_value = TorrentData(metainfo_file, Path("/", "data"))
     link_service = FindService(locator)
 
     command = FindCommand(find_args, link_service, {metainfo_file})
@@ -37,13 +40,11 @@ def test_find_found(mocker: MockerFixture):
 
 
 def test_find_missing(mocker: MockerFixture):
-    metainfo_path = Path('/', 'metainfo.torrent')
+    metainfo_path = Path("/", "metainfo.torrent")
     properties = {
-        'info_hash': 'meaningless and necessary',
-        'name': 'test_name',
-        'info': {
-            'length': 0
-        }
+        "info_hash": "meaningless and necessary",
+        "name": "test_name",
+        "info": {"length": 0},
     }
     metainfo_file = MetainfoFile(properties, metainfo_path)
     fs = mocker.Mock(spec=Filesystem)

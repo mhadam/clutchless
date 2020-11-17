@@ -92,18 +92,18 @@ class DefaultFileLocator(FileLocator):
             self.path = fs.root()
 
     @staticmethod
-    def get_parent_of_wanted_matches(is_dir_pairs: Iterable[Tuple[Path, bool]], want_dir: bool) -> Optional[Path]:
+    def get_parent_of_wanted_matches(
+        is_dir_pairs: Iterable[Tuple[Path, bool]], want_dir: bool
+    ) -> Optional[Path]:
         def xnor(x: bool, y: bool) -> bool:
             return (x or not y) and (not x or y)
 
         def filter_wanted_type(pair: Iterable[Tuple[Path, bool]]) -> bool:
             _, is_dir = pair
             return xnor(is_dir, want_dir)
+
         wanted_pairs = filter(filter_wanted_type, is_dir_pairs)
-        parents_of_wanted_paths = map(
-            lambda pair: Path(pair[0]).parent,
-            wanted_pairs
-        )
+        parents_of_wanted_paths = map(lambda pair: Path(pair[0]).parent, wanted_pairs)
         return next(parents_of_wanted_paths, None)
 
     def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:
@@ -128,8 +128,7 @@ class MultipleDirectoryFileLocator(FileLocator):
         self.fs = fs
         self.path = path
         self.locators: Mapping[Path, FileLocator] = {
-            directory: DefaultFileLocator(fs, path)
-            for directory in directories
+            directory: DefaultFileLocator(fs, path) for directory in directories
         }
 
     def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:

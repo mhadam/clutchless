@@ -5,8 +5,14 @@ from pytest_mock import MockerFixture
 
 from clutchless.domain.torrent import MetainfoFile, TorrentFile
 from clutchless.external.filesystem import DefaultFileLocator, Filesystem, FileLocator
-from clutchless.external.metainfo import TorrentDataLocator, DefaultTorrentDataLocator, DefaultTorrentDataReader, \
-    TorrentDataReader, CustomTorrentDataLocator, TorrentData
+from clutchless.external.metainfo import (
+    TorrentDataLocator,
+    DefaultTorrentDataLocator,
+    DefaultTorrentDataReader,
+    TorrentDataReader,
+    CustomTorrentDataLocator,
+    TorrentData,
+)
 
 
 def test_get_parent_of_wanted_matches_dirs():
@@ -48,9 +54,11 @@ def test_metainfo_find(mocker):
     )
 
     file_locator = mocker.Mock(spec=FileLocator)
-    file_locator.locate.return_value = Path('/root')
+    file_locator.locate.return_value = Path("/root")
     data_reader = DefaultTorrentDataReader(fs)
-    data_locator: TorrentDataLocator = CustomTorrentDataLocator(file_locator, data_reader)
+    data_locator: TorrentDataLocator = CustomTorrentDataLocator(
+        file_locator, data_reader
+    )
 
     result = data_locator.find(metainfo_file)
 
@@ -61,7 +69,7 @@ def test_default_torrent_reader_verify_single_file(mocker: MockerFixture):
     fs = mocker.Mock(spec=Filesystem)
     fs.exists.side_effect = lambda path: path == Path("/root/torrent_name")
 
-    path = Path('/root')
+    path = Path("/root")
     metainfo_file = MetainfoFile(
         {
             "name": "torrent_name",
@@ -81,14 +89,9 @@ def test_default_torrent_reader_verify_multiple_file(mocker: MockerFixture):
     fs = mocker.Mock(spec=Filesystem)
     fs.exists.side_effect = lambda path: path == Path("/root/torrent_name/file1")
 
-    path = Path('/root')
+    path = Path("/root")
     metainfo_file = MetainfoFile(
-        {
-            "name": "torrent_name",
-            "info": {
-                "files": [{"path": ["file1"], "length": 5}]
-            }
-        }
+        {"name": "torrent_name", "info": {"files": [{"path": ["file1"], "length": 5}]}}
     )
 
     reader: TorrentDataReader = DefaultTorrentDataReader(fs)
