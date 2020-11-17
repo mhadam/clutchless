@@ -1,15 +1,12 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import MutableMapping, Set, Sequence, MutableSequence, Mapping, Iterable
-from urllib.parse import urlparse
+from typing import Set, Sequence, Mapping, Iterable, Tuple
 
 from texttable import Texttable
 
-from clutchless.service.torrent import OrganizeService
 from clutchless.command.command import Command, CommandOutput
-from clutchless.external.result import QueryResult
-from clutchless.external.transmission import TransmissionApi, TransmissionError
+from clutchless.service.torrent import OrganizeService
 from clutchless.spec.organize import TrackerSpec
 
 
@@ -28,56 +25,82 @@ class OrganizeFailure:
 
 @dataclass
 class OrganizeCommandOutput(CommandOutput):
-    successes: MutableSequence[OrganizeSuccess] = field(default_factory=list)
-    failures: MutableSequence[OrganizeFailure] = field(default_factory=list)
+    success: Sequence[OrganizeSuccess] = field(default_factory=list)
+    failure: Sequence[OrganizeFailure] = field(default_factory=list)
 
     def display(self):
         pass
 
 
+@dataclass
+class OrganizeAction:
+    new_path: Path
+    torrent_id: int
+
+
 class OrganizeCommand(Command):
-    def __init__(self, raw_spec: str, new_path: Path, organize_service: OrganizeService):
+    def __init__(
+        self, raw_spec: str, new_path: Path, organize_service: OrganizeService
+    ):
         self.raw_spec = raw_spec
         self.new_path = new_path
         self.organize_service = organize_service
 
     def run(self) -> OrganizeCommandOutput:
-        result = OrganizeCommandOutput()
-        return self.__organize()
+        announce_url_to_folder_name: Mapping[
+            str, str
+        ] = self.__get_announce_url_to_folder_name()
+        announce_urls_by_torrent_id = (
+            self.organize_service.get_announce_urls_by_torrent_id()
+        )
+        actions = self._make_actions(
+            announce_url_to_folder_name, announce_urls_by_torrent_id
+        )
+        success, fail = self._handle(actions)
+        return OrganizeCommandOutput(success, fail)
 
-    # def __organize(self) -> Sequence[CommandResultAccumulator]:
-    #     announce_url_to_folder_name: Mapping[str, str] = self.__get_announce_url_to_folder_name()
-    #     for (torrent_id, announce_urls) in self.client.get_torrent_trackers():
-    #         folder_name = self.__get_folder_name(
-    #             announce_urls, announce_url_to_folder_name
-    #         )
-    #         try:
-    #             new_path = self.__get_new_torrent_path(folder_name)
-    #             self.__move(torrent_id, new_path)
-    #             old_path = self.client.get_torrent_location(torrent_id)
-    #             accumulators.append(OrganizeSuccess(torrent_id, new_path, old_path))
-    #         except TransmissionError as e:
-    #             accumulators.append(OrganizeFailure(torrent_id, e.message))
-    #     return accumulators
+    def _make_actions(
+        self,
+        folder_name_by_announce_url: Mapping[str, str],
+        announce_urls_by_torrent_id: Mapping[int, Set[str]],
+    ) -> Iterable[OrganizeAction]:
+        for (torrent_id, announce_urls) in announce_urls_by_torrent_id.items():
+            folder_name = self._get_folder_name(
+                announce_urls, folder_name_by_announce_url
+            )
+            new_path = Path(self.new_path, folder_name)
+            yield OrganizeAction(new_path, torrent_id)
 
     def __get_announce_url_to_folder_name(self) -> Mapping[str, str]:
         overrides = TrackerSpec(self.raw_spec)
         return self.organize_service.get_folder_name_by_url(overrides)
 
     @staticmethod
-    def _get_folder_name(urls: Iterable[str], announce_url_to_folder_name: Mapping[str, str]) -> str:
+    def _get_folder_name(
+        urls: Iterable[str], folder_name_by_announce_url: Mapping[str, str]
+    ) -> str:
         for url in urls:
             try:
-                return announce_url_to_folder_name[url]
+                return folder_name_by_announce_url[url]
             except KeyError:
                 pass
         return "other_torrents"
 
-    def __move(self, torrent_id: int, new_path: Path):
-        self.client.move_torrent_location(torrent_id, new_path)
-
-    def __get_new_torrent_path(self, folder_name: str) -> Path:
-        return Path(self.new_path, folder_name)
+    def _handle(
+        self, actions: Iterable[OrganizeAction]
+    ) -> Tuple[Sequence[OrganizeSuccess], Sequence[OrganizeFailure]]:
+        success = []
+        failure = []
+        for action in actions:
+            torrent_id = action.torrent_id
+            new_path = action.new_path
+            try:
+                old_path = self.organize_service.get_torrent_location(torrent_id)
+                self.organize_service.move_location(torrent_id, new_path)
+                success.append(OrganizeSuccess(torrent_id, new_path, old_path))
+            except RuntimeError as e:
+                failure.append(OrganizeFailure(torrent_id, str(e)))
+        return success, failure
 
 
 @dataclass
@@ -101,7 +124,9 @@ class ListOrganizeCommandOutput(CommandOutput):
         table.set_cols_align(["l", "l", "l"])
         table.set_header_align(["l", "l", "l"])
         table.header(["ID", "Name", "Tracker"])
-        for index, (folder_name, urls) in enumerate(self.announce_urls_by_folder_name.items()):
+        for index, (folder_name, urls) in enumerate(
+            self.announce_urls_by_folder_name.items()
+        ):
             self.__add_entry(table, index, folder_name, urls)
         table_output = table.draw()
         print(table_output, end="")

@@ -1,6 +1,11 @@
 import pytest
 
-from clutchless.spec.organize import any_duplicates, TrackerSpec, FolderAssignment, SpecError
+from clutchless.spec.organize import (
+    any_duplicates,
+    TrackerSpec,
+    FolderAssignment,
+    SpecError,
+)
 
 
 def test_any_duplicates():
@@ -32,7 +37,7 @@ def test_folder_assignment_empty_folder_name():
 
 def test_validate_split_parts_invalid_length():
     with pytest.raises(SpecError) as e:
-        _ = FolderAssignment._validate_split_parts(['a', 'a', 'a'])
+        _ = FolderAssignment._validate_split_parts(["a", "a", "a"])
 
     assert "delimited" in e.value.message
 
@@ -54,19 +59,14 @@ def test_validate_indices():
 def test_tracker_spec():
     result = TrackerSpec("1=folder;2=another")
 
-    assert result == {
-        1: "folder",
-        2: "another"
-    }
+    assert result == {1: "folder", 2: "another"}
 
 
 def test_tracker_spec_merge():
     assignments = [FolderAssignment("1=folder")]
     result = TrackerSpec._merge(assignments)
 
-    assert result == {
-        1: "folder"
-    }
+    assert result == {1: "folder"}
 
 
 def test_tracker_spec_merge_duplicate():

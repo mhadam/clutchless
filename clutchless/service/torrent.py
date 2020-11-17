@@ -213,3 +213,22 @@ class OrganizeService:
                 except KeyError:
                     result[url] = folder_name
         return result
+
+    def get_announce_urls_by_torrent_id(self) -> Mapping[int, Set[str]]:
+        result: QueryResult[Mapping[int, Set[str]]] = self.client.get_torrent_trackers()
+        if not result.success:
+            raise RuntimeError("get_torrent_trackers query failed")
+        return result.value
+
+    def move_location(self, torrent_id: int, new_path: Path):
+        command_result: CommandResult = self.client.move_torrent_location(
+            torrent_id, new_path
+        )
+        if not command_result.success:
+            raise RuntimeError("failed to change torrent location")
+
+    def get_torrent_location(self, torrent_id: int) -> Path:
+        result: QueryResult[Path] = self.client.get_torrent_location(torrent_id)
+        if not result.success:
+            raise RuntimeError("get_torrent_location query failed")
+        return result.value
