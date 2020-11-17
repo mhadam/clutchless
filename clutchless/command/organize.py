@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 
 from texttable import Texttable
 
+from clutchless.service.torrent import OrganizeService
+from clutchless.command.command import Command, CommandOutput
 from clutchless.external.result import QueryResult
 from clutchless.external.transmission import TransmissionApi, TransmissionError
 
@@ -91,53 +93,53 @@ from clutchless.external.transmission import TransmissionApi, TransmissionError
 #
 #     def __get_spec(self) -> TrackerSpec:
 #         return TrackerSpecParser().parse(self.raw_spec)
-#
-#
-# @dataclass
-# class ListOrganizeCommandResult(CommandResult):
-#     hostname_to_trackers: "OrderedDict[str, Sequence[str]]"
-#
-#     def output(self):
-#         if len(self.hostname_to_trackers) > 0:
-#             self.__print_entries()
-#         else:
-#             self.__print_if_empty()
-#
-#     def __print_if_empty(self):
-#         print("No folder names to organize into (are there any torrents?).")
-#
-#     def __print_entries(self):
-#         table = Texttable()
-#         table.set_deco(Texttable.HEADER)
-#         table.set_cols_dtype(["i", "t", "t"])
-#         table.set_cols_align(["l", "l", "l"])
-#         table.set_header_align(["l", "l", "l"])
-#         table.header(["ID", "Name", "Tracker"])
-#         for index, (group_name, urls) in enumerate(self.hostname_to_trackers.items()):
-#             self.__add_entry(table, index, group_name, urls)
-#         table_output = table.draw()
-#         print(table_output, end="")
-#
-#     def __add_entry(self, table, index: int, group_name: str, urls: Sequence[str]):
-#         first_url, *other_urls = urls
-#         shortened_url = self.__shorten_url(first_url)
-#         table.add_row([index, group_name, shortened_url])
-#         for url in other_urls:
-#             shortened_url = self.__shorten_url(url)
-#             table.add_row([index, group_name, shortened_url])
-#
-#     def __shorten_url(self, url: str) -> str:
-#         if len(url) > 40:
-#             return url[:37] + "..."
-#         return url
-#
-#
-# class ListOrganizeCommand(Command):
-#     def __init__(self, client: TransmissionApi):
-#         self.client = client
-#
-#     def run(self) -> ListOrganizeCommandResult:
-#         hostname_to_trackers = AnnounceUrlGrouper(
-#             self.client
-#         ).get_announce_urls_by_group_name()
-#         return ListOrganizeCommandResult(hostname_to_trackers)
+
+
+@dataclass
+class ListOrganizeCommandOutput(CommandOutput):
+    announce_urls_by_folder_name: "OrderedDict[str, Sequence[str]]"
+
+    def display(self):
+        if len(self.announce_urls_by_folder_name) > 0:
+            self.__print_entries()
+        else:
+            self.__print_if_empty()
+
+    @staticmethod
+    def __print_if_empty():
+        print("No folder names to organize into (are there any torrents?).")
+
+    def __print_entries(self):
+        table = Texttable()
+        table.set_deco(Texttable.HEADER)
+        table.set_cols_dtype(["i", "t", "t"])
+        table.set_cols_align(["l", "l", "l"])
+        table.set_header_align(["l", "l", "l"])
+        table.header(["ID", "Name", "Tracker"])
+        for index, (folder_name, urls) in enumerate(self.announce_urls_by_folder_name.items()):
+            self.__add_entry(table, index, folder_name, urls)
+        table_output = table.draw()
+        print(table_output, end="")
+
+    def __add_entry(self, table, index: int, group_name: str, urls: Sequence[str]):
+        first_url, *other_urls = urls
+        shortened_url = self._shorten_url(first_url)
+        table.add_row([index, group_name, shortened_url])
+        for url in other_urls:
+            shortened_url = self._shorten_url(url)
+            table.add_row([index, group_name, shortened_url])
+
+    @staticmethod
+    def _shorten_url(url: str) -> str:
+        if len(url) > 40:
+            return url[:37] + "..."
+        return url
+
+
+class ListOrganizeCommand(Command):
+    def __init__(self, service: OrganizeService):
+        self.service = service
+
+    def run(self) -> ListOrganizeCommandOutput:
+        announce_urls_by_folder_name = self.service.get_announce_urls_by_folder_name()
+        return ListOrganizeCommandOutput(announce_urls_by_folder_name)
