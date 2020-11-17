@@ -17,6 +17,7 @@ python = "^3.7"
 colorama = "^0.4.4"
 transmission-clutch = "^4.2.1"
 torrentool = "^1.1.0"
+texttable = "^1.6.3"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.2.1"
