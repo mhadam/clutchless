@@ -123,12 +123,11 @@ class DefaultFileLocator(FileLocator):
 
 
 class MultipleDirectoryFileLocator(FileLocator):
-    def __init__(self, directories: Set[Path], fs: Filesystem, path: Path):
+    def __init__(self, directories: Set[Path], fs: Filesystem):
         self.directories = directories
         self.fs = fs
-        self.path = path
         self.locators: Mapping[Path, FileLocator] = {
-            directory: DefaultFileLocator(fs, path) for directory in directories
+            directory: DefaultFileLocator(fs, directory) for directory in directories
         }
 
     def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:

@@ -1,22 +1,10 @@
-from typing import Protocol, TypeVar, Union, Sequence
-
-from clutchless.external.transmission import TransmissionApi
+from typing import Protocol, Sequence, Mapping, Any
 
 
 class CommandOutput(Protocol):
     """Protocol for command result."""
 
     def display(self):
-        raise NotImplementedError
-
-
-CO = TypeVar("CO", bound=CommandOutput)
-
-
-class CommandOutputAccumulator(Protocol[CO]):
-    """Since command results can have different fields, this handles adding to them polymorphically."""
-
-    def accumulate(self, result: CO):
         raise NotImplementedError
 
 
@@ -32,14 +20,6 @@ class CommandError(Exception):
         self.message = message
 
 
-class CommandFactoryWithoutClient(Protocol):
-    def __call__(self, argv: Sequence[str]) -> Command:
+class CommandFactory(Protocol):
+    def __call__(self, argv: Sequence[str], dependencies: Mapping[str, Any]) -> Command:
         raise NotImplementedError
-
-
-class CommandFactoryWithClient(Protocol):
-    def __call__(self, argv: Sequence[str], client: TransmissionApi) -> Command:
-        raise NotImplementedError
-
-
-CommandFactory = Union[CommandFactoryWithClient, CommandFactoryWithoutClient]

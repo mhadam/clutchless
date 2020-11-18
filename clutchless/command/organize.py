@@ -38,7 +38,9 @@ class OrganizeCommandOutput(CommandOutput):
             print("Organized these torrents:")
             for success in self.success:
                 metainfo = success.metainfo_file
-                print(f"{metainfo.name} moved from {success.old_path} to {success.new_path}")
+                print(
+                    f"{metainfo.name} moved from {success.old_path} to {success.new_path}"
+                )
         if failure_count > 0:
             print("Failed to organize these torrents:")
             for failure in self.failure:
@@ -62,7 +64,9 @@ class OrganizeCommand(Command):
 
     def run(self) -> OrganizeCommandOutput:
         overrides = TrackerSpec(self.raw_spec)
-        announce_url_to_folder_name = self.organize_service.get_folder_name_by_url(overrides)
+        announce_url_to_folder_name = self.organize_service.get_folder_name_by_url(
+            overrides
+        )
         announce_urls_by_torrent_id = (
             self.organize_service.get_announce_urls_by_torrent_id()
         )
@@ -107,7 +111,9 @@ class OrganizeCommand(Command):
             try:
                 old_path = self.organize_service.get_torrent_location(torrent_id)
                 self.organize_service.move_location(torrent_id, new_path)
-                success.append(OrganizeSuccess(torrent_id, metainfo_file, new_path, old_path))
+                success.append(
+                    OrganizeSuccess(torrent_id, metainfo_file, new_path, old_path)
+                )
             except RuntimeError as e:
                 failure.append(OrganizeFailure(torrent_id, metainfo_file, str(e)))
         return success, failure

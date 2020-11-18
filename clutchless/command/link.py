@@ -63,6 +63,25 @@ class LinkCommand(Command):
 
 
 @dataclass
+class DryRunLinkCommandOutput(CommandOutput):
+    found: Set[TorrentData]
+    rest: Set[MetainfoFile]
+
+    def display(self):
+        pass
+
+
+class DryRunLinkCommand(LinkCommand):
+    def run(self) -> DryRunLinkCommandOutput:
+        torrent_id_by_metainfo_file = (
+            self.link_service.get_incomplete_id_by_metainfo_file()
+        )
+        metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
+        found, rest = self.find_service.find(metainfo_files)
+        return DryRunLinkCommandOutput(found, rest)
+
+
+@dataclass
 class LinkListCommandResult(CommandOutput):
     found: Set[TorrentData]
     rest: Set[MetainfoFile]

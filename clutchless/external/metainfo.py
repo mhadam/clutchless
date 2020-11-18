@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Optional, Set, Mapping
+from typing import Protocol, Optional
 
 from torrentool.torrent import Torrent as ExternalTorrent
 

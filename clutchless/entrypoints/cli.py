@@ -21,26 +21,29 @@ See 'clutchless help <command>' for more information on a specific command.
 """
 import logging
 import sys
-from typing import Mapping
+from typing import Mapping, Any
 
 from docopt import docopt
 
 from clutchless.command.command import (
     CommandOutput,
 )
-from clutchless.command.factory import CommandCreator
+from clutchless.configuration import CommandCreator, command_factories
+from clutchless.external.filesystem import DefaultFilesystem, DefaultFileLocator
+from clutchless.external.metainfo import DefaultMetainfoReader
 from clutchless.external.transmission import clutch_factory, ClutchApi
 
 
 class Application:
-    def __init__(self, args: Mapping):
+    def __init__(self, args: Mapping, dependencies: Mapping):
         self.args = args
+        self.dependencies = dependencies
 
     def run(self):
         logging.basicConfig(level=logging.DEBUG)
-        clutch_client = clutch_factory(self.args)
-        client = ClutchApi(clutch_client)
-        command = CommandCreator(self.args, client).get_command()
+        command = CommandCreator(self.dependencies, command_factories).get_command(
+            self.args
+        )
         result: CommandOutput = command.run()
         result.display()
 
@@ -56,6 +59,17 @@ def setup_logging(verbosity):
     logging.basicConfig(level=loglevel, format="%(message)s")
 
 
+def get_dependencies(args: Mapping) -> Mapping[str, Any]:
+    clutch_client = clutch_factory(args)
+    fs = DefaultFilesystem()
+    return {
+        "client": ClutchApi(clutch_client),
+        "fs": fs,
+        "locator": DefaultFileLocator(fs),
+        "metainfo_reader": DefaultMetainfoReader(),
+    }
+
+
 def main():
     try:
         args = docopt(__doc__, options_first=True)
@@ -63,7 +77,8 @@ def main():
         verbosity = parse_logging_level(args)
         setup_logging(verbosity)
 
-        application = Application(args)
+        dependencies = get_dependencies(args)
+        application = Application(args, dependencies)
         application.run()
     except Exception as e:
         logging.error(str(e))

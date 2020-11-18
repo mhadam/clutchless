@@ -42,15 +42,13 @@ class FindOutput(CommandOutput):
 class FindCommand(Command):
     def __init__(
         self,
-        find_args: FindArgs,
-        link_service: FindService,
+        find_service: FindService,
         metainfo_files: Set[MetainfoFile],
     ):
-        self.find_args = find_args
-        self.link_service = link_service
+        self.find_service = find_service
         self.metainfo_files = metainfo_files
 
     def run(self) -> FindOutput:
-        linked, rest = self.link_service.find(self.metainfo_files)
+        linked, rest = self.find_service.find(self.metainfo_files)
         output = FindOutput(linked, rest)
         return output

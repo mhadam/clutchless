@@ -1,10 +1,10 @@
 """ Add torrents to Transmission (with or without data).
 
 Usage:
-    clutchless add [--dry-run] [--delete] [-f | --force] <torrents> ... [-d <data> ...]
+    clutchless add [--dry-run] [--delete] [-f | --force] <metainfo> ... [-d <data> ...]
 
 Arguments:
-    <torrents>  Torrent files (.torrent) to add to Transmission.
+    <metainfo>  Metainfo files (.torrent) to add to Transmission.
 
 Options:
     -d <data> ...   Data to associate to torrents.
@@ -17,21 +17,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Set
 
-from clutchless.spec.shared import MetainfoFileCrawler, DataDirectoryParser
+from clutchless.spec.shared import DataDirectoryParser
 
 
 @dataclass
 class AddArgs:
-    torrent_files: Set[Path]
+    metainfo_files: Set[Path]
     data_dirs: Set[Path]
 
     @staticmethod
     def parse(args: Mapping) -> "AddArgs":
-        crawler = MetainfoFileCrawler()
-        torrent_files = crawler.crawl(args["<torrents>"])
-        parser = DataDirectoryParser()
-        data_dirs = parser.parse(args.get("-d"))
-        return AddArgs(torrent_files, data_dirs)
+        # torrent_files = crawler.crawl(args["<torrents>"])
+        # data_dirs = parser.parse(args.get("-d"))
+        # return AddArgs(torrent_files, data_dirs)
+        return AddArgs(set(), set())
 
 
 @dataclass
