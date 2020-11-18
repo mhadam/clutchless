@@ -2,13 +2,13 @@ import os
 from dataclasses import dataclass
 from typing import Set, Mapping
 
-from clutchless.command import Command, CommandResult
+from clutchless.command.command import CommandOutput, Command
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.transmission import TransmissionApi
 
 
 @dataclass
-class DryRunPruneFolderCommandResult(CommandResult):
+class DryRunPruneFolderCommandOutput(CommandOutput):
     pruned: Set[MetainfoFile]
 
     def output(self):
@@ -45,15 +45,15 @@ class DryRunPruneFolderCommand(Command):
         self.client = client
         self.metainfo_files = metainfo_files
 
-    def run(self) -> DryRunPruneFolderCommandResult:
+    def run(self) -> DryRunPruneFolderCommandOutput:
         matcher = MetainfoFileClientMatcher(self.client, self.metainfo_files)
         metainfo_files_by_id = matcher.get_metainfo_files_by_id()
         pruned = set(metainfo_files_by_id.values())
-        return DryRunPruneFolderCommandResult(pruned)
+        return DryRunPruneFolderCommandOutput(pruned)
 
 
 @dataclass
-class PruneFolderCommandResult(CommandResult):
+class PruneFolderCommandOutput(CommandOutput):
     pruned: Set[MetainfoFile]
 
     def output(self):
@@ -70,12 +70,12 @@ class PruneFolderCommand(Command):
         self.client = client
         self.metainfo_files = metainfo_files
 
-    def run(self) -> PruneFolderCommandResult:
+    def run(self) -> PruneFolderCommandOutput:
         matcher = MetainfoFileClientMatcher(self.client, self.metainfo_files)
         metainfo_files_by_id = matcher.get_metainfo_files_by_id()
         metainfo_files = set(metainfo_files_by_id.values())
         self.__remove_torrents(metainfo_files)
-        return PruneFolderCommandResult(metainfo_files)
+        return PruneFolderCommandOutput(metainfo_files)
 
     def __remove_torrents(self, metainfo_files: Set[MetainfoFile]):
         paths = {file.path for file in metainfo_files}
