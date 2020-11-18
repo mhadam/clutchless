@@ -39,7 +39,7 @@ from clutchless.service.torrent import (
     AddService,
     LinkService,
     LinkDataService,
-    FindService,
+    FindService, OrganizeService,
 )
 from clutchless.spec.add import AddArgs, AddFlags
 from clutchless.spec.find import FindArgs
@@ -121,20 +121,22 @@ def find_factory(argv: Sequence[str], dependencies: Mapping) -> Command:
 
 def organize_factory(argv: Sequence[str], dependencies: Mapping) -> Command:
     client = dependencies["client"]
+    reader = dependencies["metainfo_reader"]
+    service = OrganizeService(client, reader)
     # parse
     from clutchless.spec import organize as organize_command
 
     org_args = docopt(doc=organize_command.__doc__, argv=argv)
     # action
     if org_args.get("--list"):
-        return ListOrganizeCommand(client)
+        return ListOrganizeCommand(service)
     else:
         # # clutchless --address http://transmission:9091/transmission/rpc organize --list
         # # clutchless --address http://transmission:9091/transmission/rpc add /app/resources/torrents/ -d /app/resources/data/
         # # clutchless --address http://transmission:9091/transmission/rpc organize /app/resources/new -t "0=Testing"
         raw_spec = org_args.get("-t")
         new_path = Path(org_args.get("<location>")).resolve(strict=False)
-        return OrganizeCommand(raw_spec, new_path, client)
+        return OrganizeCommand(raw_spec, new_path, service)
 
 
 def archive_factory(argv: Sequence[str], dependencies: Mapping) -> Command:
