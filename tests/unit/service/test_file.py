@@ -3,8 +3,10 @@ from pathlib import Path
 
 from pytest_mock import MockerFixture
 
+from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem, FileLocator
-from clutchless.service.file import collect_metainfo_files
+from clutchless.external.metainfo import MetainfoReader
+from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths
 
 
 def test_collect_metainfo_files(mocker: MockerFixture):
@@ -45,9 +47,19 @@ def test_collect_metainfo_files(mocker: MockerFixture):
     locator = mocker.Mock(spec=FileLocator)
     locator.collect.return_value = {Path("/some_path/child1/file2.torrent")}
 
-    result = collect_metainfo_files(filesystem, locator, raw_paths)
+    reader = mocker.Mock(spec=MetainfoReader)
+    reader.from_path.side_effect = lambda path: MetainfoFile(
+        {
+            'info_hash': path
+        }
+    )
 
-    assert set(result) == {
+    result_files = collect_metainfo_files(filesystem, locator, raw_paths, reader)
+    result_paths = collect_metainfo_paths(filesystem, locator, raw_paths)
+
+    assert set(result_paths) == {
         Path("/another_path/file.torrent"),
         Path("/some_path/child1/file2.torrent"),
     }
+
+    assert len(result_files) == 2
