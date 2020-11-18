@@ -6,7 +6,6 @@ from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.metainfo import TorrentData
 from clutchless.service.torrent import FindService
-from clutchless.spec.find import FindArgs
 
 
 class FindOutput(CommandOutput):
@@ -17,7 +16,7 @@ class FindOutput(CommandOutput):
     @staticmethod
     def print_found(found: TorrentData):
         name = found.metainfo_file.name
-        path = found.metainfo_file.path
+        path = found.location
         print(Fore.GREEN + f"\N{check mark} {name} at {path}")
 
     @staticmethod
@@ -49,6 +48,6 @@ class FindCommand(Command):
         self.metainfo_files = metainfo_files
 
     def run(self) -> FindOutput:
-        linked, rest = self.find_service.find(self.metainfo_files)
-        output = FindOutput(linked, rest)
+        found, rest = self.find_service.find(self.metainfo_files)
+        output = FindOutput(found, rest)
         return output
