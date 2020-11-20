@@ -81,7 +81,7 @@ def main():
         application = Application(args, dependencies)
         application.run()
     except Exception as e:
-        logging.error(str(e))
+        logging.exception(str(e))
         logging.debug("", exc_info=True)
         try:
             sys.exit(e.errno)

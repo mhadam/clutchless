@@ -92,7 +92,7 @@ class DefaultFileLocator(FileLocator):
             self.path = fs.root()
 
     @staticmethod
-    def get_parent_of_wanted_matches(
+    def _get_parent_of_wanted_matches(
         is_dir_pairs: Iterable[Tuple[Path, bool]], want_dir: bool
     ) -> Optional[Path]:
         def xnor(x: bool, y: bool) -> bool:
@@ -108,17 +108,19 @@ class DefaultFileLocator(FileLocator):
 
     def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:
         normalized_path = str(self.path).rstrip("/")
-        matches = glob.iglob(f"{normalized_path}/**/{filename}", recursive=True)
+        escaped_pathname = glob.escape(f"{normalized_path}/**/{filename}")
+        matches = glob.iglob(escaped_pathname, recursive=True)
         paths = (Path(match) for match in matches)
         is_dir_pairs = ((path, self.fs.is_directory(path)) for path in paths)
-        return self.get_parent_of_wanted_matches(is_dir_pairs, is_dir)
+        return self._get_parent_of_wanted_matches(is_dir_pairs, is_dir)
 
     def collect(self, extension: str) -> Iterable[Path]:
         if self.fs.is_file(self.path):
             raise ValueError(f"{self.path} is not a directory")
         normalized_path = str(self.path).rstrip("/")
+        escaped_pathname = glob.escape(f"{normalized_path}/**/*{extension}")
         return map(
-            Path, glob.iglob(f"{normalized_path}/**/*.{extension}", recursive=True)
+            Path, glob.iglob(escaped_pathname, recursive=True)
         )
 
 
