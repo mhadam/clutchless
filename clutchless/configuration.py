@@ -39,7 +39,9 @@ from clutchless.service.torrent import (
     AddService,
     LinkService,
     LinkDataService,
-    FindService, OrganizeService,
+    FindService,
+    OrganizeService,
+    PruneService,
 )
 from clutchless.spec.add import AddArgs, AddFlags
 from clutchless.spec.find import FindArgs
@@ -158,6 +160,7 @@ def prune_folder_factory(argv: Sequence[str], dependencies: Mapping) -> Command:
     fs = dependencies["fs"]
     locator = dependencies["locator"]
     reader = dependencies["metainfo_reader"]
+    service = PruneService(client)
     from clutchless.spec.prune import folder as prune_folder_command
 
     prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
@@ -168,31 +171,31 @@ def prune_folder_factory(argv: Sequence[str], dependencies: Mapping) -> Command:
         fs, locator, folder_paths, reader
     )
     if dry_run:
-        return DryRunPruneFolderCommand(client, metainfo_files)
-    return PruneFolderCommand(client, metainfo_files)
+        return DryRunPruneFolderCommand(service, metainfo_files)
+    return PruneFolderCommand(service, fs, metainfo_files)
 
 
 def prune_client_factory(argv: Sequence[str], dependencies: Mapping) -> Command:
     client = dependencies["client"]
+    service = PruneService(client)
     from clutchless.spec.prune import client as prune_client_command
 
     prune_args = docopt(doc=prune_client_command.__doc__, argv=argv)
     dry_run: bool = prune_args.get("--dry-run")
     if dry_run:
-        return DryRunPruneClientCommand(client)
-    return PruneClientCommand(client)
+        return DryRunPruneClientCommand(service)
+    return PruneClientCommand(service)
 
 
 def prune_factory(argv: Sequence[str], dependencies: Mapping) -> Command:
-    client = dependencies["client"]
     from clutchless.spec.prune import main as prune_command
 
     args = docopt(doc=prune_command.__doc__, options_first=True, argv=argv)
     prune_subcommand = args.get("<command>")
     if prune_subcommand == "folder":
-        return prune_folder_factory(argv, client)
+        return prune_folder_factory(argv, dependencies)
     elif prune_subcommand == "client":
-        return prune_client_factory(argv, client)
+        return prune_client_factory(argv, dependencies)
     else:
         # print("Invalid prune subcommand: requires <folder|client>")
         return MissingCommand()
@@ -214,6 +217,7 @@ command_factories: DefaultDict[Any, CommandFactory] = defaultdict(
         "find": find_factory,
         "organize": organize_factory,
         "archive": archive_factory,
+        "prune": prune_factory,
     },
 )
 

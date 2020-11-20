@@ -146,6 +146,30 @@ class AnnounceUrl:
         return split
 
 
+class PruneService:
+    def __init__(self, client: TransmissionApi):
+        self.client = client
+
+    def get_torrent_hashes(self) -> Set[str]:
+        query: QueryResult[Mapping[str, int]] = self.client.get_torrent_ids_by_hash()
+        if not query.success:
+            raise RuntimeError("get_torrent_ids_by_hash query failed")
+        return set(query.value.keys())
+
+    def get_torrent_name_by_id_with_missing_data(self) -> Mapping[int, str]:
+        query: QueryResult[
+            Mapping[int, str]
+        ] = self.client.get_torrent_names_by_id_with_missing_data()
+        if not query.success:
+            raise RuntimeError("get_torrent_names_by_id_with_missing_data query failed")
+        return query.value
+
+    def remove_torrent(self, torrent_id: int):
+        result: CommandResult = self.client.remove_torrent_keeping_data(torrent_id)
+        if not result.success:
+            raise RuntimeError("failed remove_torrent command", result)
+
+
 class OrganizeService:
     """
     Queries Transmission for all announce urls and collects a sorted map with:

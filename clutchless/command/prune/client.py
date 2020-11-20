@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Set
+from typing import Set, Mapping
 
 from clutchless.command.command import CommandOutput, Command
-from clutchless.external.transmission import TransmissionApi
+from clutchless.service.torrent import PruneService
 
 
 @dataclass
@@ -19,15 +19,15 @@ class PruneClientResult(CommandOutput):
 
 
 class PruneClientCommand(Command):
-    def __init__(self, client: TransmissionApi):
-        self.client = client
+    def __init__(self, service: PruneService):
+        self.service = service
 
     def run(self) -> CommandOutput:
-        missing_torrent_names_by_id = (
-            self.client.get_torrent_names_by_id_with_missing_data()
-        )
+        missing_torrent_names_by_id: Mapping[
+            int, str
+        ] = self.service.get_torrent_name_by_id_with_missing_data()
         for torrent_id in missing_torrent_names_by_id.keys():
-            self.client.remove_torrent_keeping_data(torrent_id)
+            self.service.remove_torrent(torrent_id)
         return PruneClientResult(set(missing_torrent_names_by_id.values()))
 
 
@@ -45,11 +45,11 @@ class DryRunPruneClientResult(CommandOutput):
 
 
 class DryRunPruneClientCommand(Command):
-    def __init__(self, client: TransmissionApi):
-        self.client = client
+    def __init__(self, service: PruneService):
+        self.service = service
 
     def run(self) -> CommandOutput:
-        missing_torrent_names_by_id = (
-            self.client.get_torrent_names_by_id_with_missing_data()
-        )
+        missing_torrent_names_by_id: Mapping[
+            int, str
+        ] = self.service.get_torrent_name_by_id_with_missing_data()
         return DryRunPruneClientResult(set(missing_torrent_names_by_id.values()))
