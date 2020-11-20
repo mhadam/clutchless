@@ -18,7 +18,7 @@ from clutchless.external.metainfo import (
 def test_get_parent_of_wanted_matches_dirs():
     is_dir_pairs = [(Path(), True)]
 
-    result = DefaultFileLocator.get_parent_of_wanted_matches(is_dir_pairs, True)
+    result = DefaultFileLocator._get_parent_of_wanted_matches(is_dir_pairs, True)
 
     assert result == Path()
 
@@ -26,7 +26,7 @@ def test_get_parent_of_wanted_matches_dirs():
 def test_get_parent_of_wanted_matches_files():
     is_dir_pairs = [(Path(), False)]
 
-    result = DefaultFileLocator.get_parent_of_wanted_matches(is_dir_pairs, False)
+    result = DefaultFileLocator._get_parent_of_wanted_matches(is_dir_pairs, False)
 
     assert result == Path()
 

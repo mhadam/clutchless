@@ -108,7 +108,7 @@ class DefaultFileLocator(FileLocator):
 
     def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:
         normalized_path = str(self.path).rstrip("/")
-        escaped_pathname = glob.escape(f"{normalized_path}/**/{filename}")
+        escaped_pathname = f"{glob.escape(normalized_path)}/**/{glob.escape(filename)}"
         matches = glob.iglob(escaped_pathname, recursive=True)
         paths = (Path(match) for match in matches)
         is_dir_pairs = ((path, self.fs.is_directory(path)) for path in paths)
@@ -118,7 +118,7 @@ class DefaultFileLocator(FileLocator):
         if self.fs.is_file(self.path):
             raise ValueError(f"{self.path} is not a directory")
         normalized_path = str(self.path).rstrip("/")
-        escaped_pathname = glob.escape(f"{normalized_path}/**/*{extension}")
+        escaped_pathname = f"{glob.escape(normalized_path)}/**/*{glob.escape(extension)}"
         return map(
             Path, glob.iglob(escaped_pathname, recursive=True)
         )
