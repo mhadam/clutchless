@@ -29,6 +29,9 @@ class Filesystem(Protocol):
     def remove(self, path: Path):
         raise NotImplementedError
 
+    def absolute(self, path: Path) -> Path:
+        raise NotImplementedError
+
 
 class CopyError(Exception):
     pass
@@ -67,6 +70,9 @@ class DefaultFilesystem(Filesystem):
 
     def remove(self, path: Path):
         path.unlink()
+
+    def absolute(self, path: Path) -> Path:
+        return path.absolute()
 
 
 class DryRunFilesystem(DefaultFilesystem):
