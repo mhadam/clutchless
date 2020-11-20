@@ -118,10 +118,10 @@ class DefaultFileLocator(FileLocator):
         if self.fs.is_file(self.path):
             raise ValueError(f"{self.path} is not a directory")
         normalized_path = str(self.path).rstrip("/")
-        escaped_pathname = f"{glob.escape(normalized_path)}/**/*{glob.escape(extension)}"
-        return map(
-            Path, glob.iglob(escaped_pathname, recursive=True)
+        escaped_pathname = (
+            f"{glob.escape(normalized_path)}/**/*{glob.escape(extension)}"
         )
+        return map(Path, glob.iglob(escaped_pathname, recursive=True))
 
 
 class MultipleDirectoryFileLocator(FileLocator):

@@ -48,11 +48,7 @@ def test_collect_metainfo_files(mocker: MockerFixture):
     locator.collect.return_value = {Path("/some_path/child1/file2.torrent")}
 
     reader = mocker.Mock(spec=MetainfoReader)
-    reader.from_path.side_effect = lambda path: MetainfoFile(
-        {
-            'info_hash': path
-        }
-    )
+    reader.from_path.side_effect = lambda path: MetainfoFile({"info_hash": path})
 
     result_files = collect_metainfo_files(filesystem, locator, raw_paths, reader)
     result_paths = collect_metainfo_paths(filesystem, locator, raw_paths)

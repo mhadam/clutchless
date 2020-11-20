@@ -46,6 +46,4 @@ class FindArgs:
     def get_torrent_files(self) -> Set[MetainfoFile]:
         raw_torrents_paths = set(self.args["<torrents>"])
         paths = {Path(path) for path in raw_torrents_paths}
-        return collect_metainfo_files(
-            self.fs, self.locator, paths, self.reader
-        )
+        return collect_metainfo_files(self.fs, self.locator, paths, self.reader)
