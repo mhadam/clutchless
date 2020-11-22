@@ -6,12 +6,51 @@ from clutchless.external.filesystem import FileLocator, Filesystem
 from clutchless.external.metainfo import MetainfoReader
 
 
+def validate_exists(fs: Filesystem, path: Path):
+    if not fs.exists(path):
+        raise ValueError(f"supplied path does not exist: {path}")
+
+
+def validate_files(fs: Filesystem, paths: Iterable[Path]):
+    def validate_path(path: Path):
+        validate_exists(fs, path)
+        reject_non_file(path)
+
+    def reject_non_file(path: Path):
+        if not fs.is_file(path):
+            raise ValueError(f"supplied path is not a file: {path}")
+
+    for p in paths:
+        validate_path(p)
+
+
+def validate_directories(fs: Filesystem, paths: Iterable[Path]):
+    def validate_path(path: Path):
+        validate_exists(fs, path)
+        reject_non_dir(path)
+
+    def reject_non_dir(path: Path):
+        if not fs.is_directory(path):
+            raise ValueError(f"supplied path is not a directory: {path}")
+
+    for p in paths:
+        validate_path(p)
+
+
 def parse_path(fs: Filesystem, value: str) -> Path:
     return fs.absolute(Path(value))
 
 
-def make_absolute(fs: Filesystem, values: Iterable[str]) -> Set[Path]:
-    return {parse_path(fs, value) for value in values}
+def get_valid_directories(fs: Filesystem, values: Iterable[str]) -> Set[Path]:
+    paths = {parse_path(fs, value) for value in values}
+    validate_directories(fs, paths)
+    return paths
+
+
+def get_valid_files(fs: Filesystem, values: Iterable[str]) -> Set[Path]:
+    paths = {parse_path(fs, value) for value in values}
+    validate_files(fs, paths)
+    return paths
 
 
 def collect_metainfo_paths(

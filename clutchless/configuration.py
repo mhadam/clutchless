@@ -25,7 +25,6 @@ from clutchless.command.prune.folder import (
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import (
     Filesystem,
-    DefaultFileLocator,
     FileLocator,
     MultipleDirectoryFileLocator,
 )
@@ -34,7 +33,7 @@ from clutchless.external.metainfo import (
     CustomTorrentDataLocator,
     DefaultTorrentDataReader, MetainfoReader,
 )
-from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths
+from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths, make_absolute
 from clutchless.service.torrent import (
     AddService,
     LinkService,
@@ -43,9 +42,8 @@ from clutchless.service.torrent import (
     OrganizeService,
     PruneService,
 )
-from clutchless.spec.add import AddArgs, AddFlags
 from clutchless.spec.find import FindArgs
-from clutchless.spec.shared import PathParser, DataDirectoryParser
+from clutchless.spec.shared import PathParser
 
 
 def add_factory(argv: Sequence[str], dependencies: Mapping) -> AddCommand:
@@ -57,11 +55,9 @@ def add_factory(argv: Sequence[str], dependencies: Mapping) -> AddCommand:
     from clutchless.spec import add as add_command
 
     args = docopt(doc=add_command.__doc__, argv=argv)
-    metainfo_paths_args = args["<torrents>"]
-    absolute_paths = {fs.absolute(Path(path)) for path in metainfo_paths_args}
-    metainfo_files = {reader.from_path(path) for path in absolute_paths}
-    data_directories_args: Sequence[str] = args["-d"]
-    data_directories = {Path(arg) for arg in data_directories_args}
+    metainfo_paths = make_absolute(fs, args["<torrents>"])
+    metainfo_files = {reader.from_path(path) for path in metainfo_paths}
+    data_directories = make_absolute(fs, args["-d"])
 
     locator = MultipleDirectoryFileLocator(data_directories, fs)
     metainfo_file_paths: Set[Path] = collect_metainfo_paths(
