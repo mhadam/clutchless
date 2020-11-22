@@ -32,7 +32,7 @@ from clutchless.external.filesystem import (
 from clutchless.external.metainfo import (
     TorrentDataLocator,
     CustomTorrentDataLocator,
-    DefaultTorrentDataReader,
+    DefaultTorrentDataReader, MetainfoReader,
 )
 from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths
 from clutchless.service.torrent import (
@@ -51,17 +51,21 @@ from clutchless.spec.shared import PathParser, DataDirectoryParser
 def add_factory(argv: Sequence[str], dependencies: Mapping) -> AddCommand:
     fs: Filesystem = dependencies["fs"]
     client = dependencies["client"]
+    reader: MetainfoReader = dependencies["reader"]
 
     # parse arguments
     from clutchless.spec import add as add_command
 
     args = docopt(doc=add_command.__doc__, argv=argv)
-    add_args = AddArgs.parse(args)
-    add_flags = AddFlags.parse(args)  # todo: fix this; use it?
+    metainfo_paths_args = args["<torrents>"]
+    absolute_paths = {fs.absolute(Path(path)) for path in metainfo_paths_args}
+    metainfo_files = {reader.from_path(path) for path in absolute_paths}
+    data_directories_args: Sequence[str] = args["-d"]
+    data_directories = {Path(arg) for arg in data_directories_args}
 
-    locator = DefaultFileLocator(fs)
+    locator = MultipleDirectoryFileLocator(data_directories, fs)
     metainfo_file_paths: Set[Path] = collect_metainfo_paths(
-        fs, locator, add_args.metainfo_files
+        fs, locator, metainfo_files
     )
     add_service = AddService(client)
 

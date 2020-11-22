@@ -5,6 +5,9 @@ from typing import Protocol, Iterable, Optional, Set, Mapping, Tuple
 
 
 class Filesystem(Protocol):
+    def touch(self, path: Path):
+        raise NotImplementedError
+
     def root(self) -> Path:
         raise NotImplementedError
 
@@ -41,6 +44,9 @@ class DefaultFilesystem(Filesystem):
     def __init__(self):
         pass
 
+    def touch(self, path: Path):
+        path.touch(exist_ok=True)
+
     def root(self) -> Path:
         return Path(Path().anchor)
 
@@ -72,7 +78,7 @@ class DefaultFilesystem(Filesystem):
         path.unlink()
 
     def absolute(self, path: Path) -> Path:
-        return path.absolute()
+        return path.resolve(strict=True)
 
 
 class DryRunFilesystem(DefaultFilesystem):

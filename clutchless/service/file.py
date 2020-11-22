@@ -6,6 +6,14 @@ from clutchless.external.filesystem import FileLocator, Filesystem
 from clutchless.external.metainfo import MetainfoReader
 
 
+def parse_path(fs: Filesystem, value: str) -> Path:
+    return fs.absolute(Path(value))
+
+
+def make_absolute(fs: Filesystem, values: Iterable[str]) -> Set[Path]:
+    return {parse_path(fs, value) for value in values}
+
+
 def collect_metainfo_paths(
     fs: Filesystem, locator: FileLocator, paths: Set[Path]
 ) -> Set[Path]:
