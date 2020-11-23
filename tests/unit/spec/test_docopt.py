@@ -16,7 +16,8 @@ def test_parsing():
         --delete        Delete successfully added torrents (meaningless when used with --dry-run).
         --dry-run       Output what would be done instead of modifying anything.
     """
-    argv = ["add", "test", "hi", "-d", "hmm"]
+    argv = ["add", "test", "hi", "-d", "hmm", "--force"]
     parsed = docopt(doc=doc_string, argv=argv)
     assert parsed["-d"] == ["hmm"]
     assert parsed["<paths>"] == ["test", "hi"]
+    assert parsed["--force"]

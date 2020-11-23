@@ -4,7 +4,7 @@ import pytest
 
 from clutchless.external.filesystem import DefaultFilesystem
 from clutchless.service.file import parse_path, validate_files, validate_directories, validate_exists, get_valid_files, \
-    get_valid_directories
+    get_valid_directories, get_valid_paths
 
 
 def test_validate_path_directory(tmp_path):
@@ -90,3 +90,20 @@ def test_get_valid_files(tmp_path):
 
     assert str(result.pop()) == str(tmp_path / 'test_file')
 
+
+def test_get_valid_paths(tmp_path):
+    fs = DefaultFilesystem()
+    fs.create_dir(tmp_path / 'test_dir')
+    fs.touch(tmp_path / 'test_file')
+
+    values = {
+        str(tmp_path / 'test_dir' / '..' / 'test_file'),
+        str(tmp_path / 'test_dir' / '..' / 'test_dir')
+    }
+
+    result = get_valid_paths(fs, values)
+
+    assert result == {
+        tmp_path / 'test_dir',
+        tmp_path / 'test_file'
+    }

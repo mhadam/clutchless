@@ -17,8 +17,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Set
 
-from clutchless.spec.shared import DataDirectoryParser
-
 
 @dataclass
 class AddArgs:

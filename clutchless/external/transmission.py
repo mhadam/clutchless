@@ -340,3 +340,63 @@ class ClutchApi(TransmissionApi):
         if response.result != "success":
             return CommandResult(error=response.result, success=False)
         return CommandResult()
+
+
+class DryRunClient(TransmissionApi):
+
+    def add_torrent(self, file: Path) -> CommandResult:
+        pass
+
+    def add_torrent_with_files(self, file: Path, download_dir: Path) -> CommandResult:
+        pass
+
+    def get_torrent_name_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, str]]:
+        pass
+
+    def get_partial_torrents(self) -> QueryResult[Mapping[str, PartialTorrent]]:
+        pass
+
+    def get_incomplete_ids(self) -> QueryResult[Set[int]]:
+        pass
+
+    def get_metainfo_file_path(self, torrent_id: int) -> QueryResult[Path]:
+        pass
+
+    def get_metainfo_file_paths_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, Path]]:
+        pass
+
+    def get_incomplete_torrent_files(self) -> QueryResult[Set[Path]]:
+        pass
+
+    def get_torrents(self, ids, fields) -> QueryResult[Mapping]:
+        pass
+
+    def get_announce_urls(self) -> QueryResult[Set[str]]:
+        pass
+
+    def get_torrent_trackers(self) -> QueryResult[Mapping[int, Set[str]]]:
+        pass
+
+    def move_torrent_location(self, torrent_id, new_path) -> CommandResult:
+        pass
+
+    def change_torrent_location(self, torrent_id, new_path) -> CommandResult:
+        pass
+
+    def get_torrent_location(self, torrent_id) -> QueryResult[Path]:
+        pass
+
+    def get_torrent_files_by_id(self) -> QueryResult[Mapping[int, Path]]:
+        pass
+
+    def get_torrent_hashes_by_id(self) -> QueryResult[Mapping[int, str]]:
+        pass
+
+    def get_torrent_ids_by_hash(self) -> QueryResult[Mapping[str, int]]:
+        pass
+
+    def get_torrent_names_by_id_with_missing_data(self) -> QueryResult[Mapping[int, str]]:
+        pass
+
+    def remove_torrent_keeping_data(self, torrent_id) -> CommandResult:
+        pass

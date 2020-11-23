@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import MutableMapping, MutableSequence, Set, Sequence
+from typing import MutableMapping, MutableSequence, Set, Sequence, Union
 
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
@@ -109,3 +109,28 @@ class LinkingAddCommand(Command):
         for path in self.add_service.success:
             self.fs.remove(path)
         return self.__make_output()
+
+
+@dataclass
+class DryRunAddOutput(CommandOutput):
+    found: MutableSequence[Path] = field(default_factory=list)
+    link: MutableSequence[Path] = field(default_factory=list)
+    added_without_data: MutableSequence[Path] = field(default_factory=list)
+
+    def display(self):
+        pass
+
+
+DryRunnableAddCommand = Union[AddCommand, LinkingAddCommand]
+
+
+class DryRunAddCommand(Command):
+    def __init__(self, command: DryRunnableAddCommand):
+        self.command = command
+
+    def run(self) -> DryRunAddOutput:
+        _ = self.command.run()
+        found = self.command.add_service.found
+        link = self.command.add_service.link
+        added_without_data = self.command.add_service.added_without_data
+        return DryRunAddOutput(found, link, added_without_data)

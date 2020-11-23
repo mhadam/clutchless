@@ -53,6 +53,13 @@ def get_valid_files(fs: Filesystem, values: Iterable[str]) -> Set[Path]:
     return paths
 
 
+def get_valid_paths(fs: Filesystem, values: Iterable[str]) -> Set[Path]:
+    paths = {parse_path(fs, value) for value in values}
+    for path in paths:
+        validate_exists(fs, path)
+    return paths
+
+
 def collect_metainfo_paths(
     fs: Filesystem, locator: FileLocator, paths: Set[Path]
 ) -> Set[Path]:

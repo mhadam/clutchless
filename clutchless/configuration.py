@@ -4,7 +4,7 @@ from typing import Sequence, Set, Mapping, Any, DefaultDict, Callable
 
 from docopt import docopt
 
-from clutchless.command.add import AddCommand
+from clutchless.command.add import AddCommand, LinkingAddCommand, DryRunAddCommand
 from clutchless.command.archive import ArchiveCommand
 from clutchless.command.command import (
     Command,
@@ -26,28 +26,28 @@ from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import (
     Filesystem,
     FileLocator,
-    MultipleDirectoryFileLocator,
+    MultipleDirectoryFileLocator, DefaultFileLocator, DryRunFilesystem,
 )
 from clutchless.external.metainfo import (
     TorrentDataLocator,
     CustomTorrentDataLocator,
     DefaultTorrentDataReader, MetainfoReader,
 )
-from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths, make_absolute
+from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths, get_valid_files, \
+    get_valid_directories, get_valid_paths
 from clutchless.service.torrent import (
     AddService,
     LinkService,
     LinkDataService,
     FindService,
     OrganizeService,
-    PruneService,
+    PruneService, LinkOnlyAddService,
 )
 from clutchless.spec.find import FindArgs
 from clutchless.spec.shared import PathParser
 
 
-def add_factory(argv: Sequence[str], dependencies: Mapping) -> AddCommand:
-    fs: Filesystem = dependencies["fs"]
+def add_factory(argv: Sequence[str], dependencies: Mapping) -> Command:
     client = dependencies["client"]
     reader: MetainfoReader = dependencies["reader"]
 
@@ -55,18 +55,34 @@ def add_factory(argv: Sequence[str], dependencies: Mapping) -> AddCommand:
     from clutchless.spec import add as add_command
 
     args = docopt(doc=add_command.__doc__, argv=argv)
-    metainfo_paths = make_absolute(fs, args["<torrents>"])
-    metainfo_files = {reader.from_path(path) for path in metainfo_paths}
-    data_directories = make_absolute(fs, args["-d"])
+    if args["--dry-run"] or not args["--delete"]:
+        fs: Filesystem = DryRunFilesystem()
+    else:
+        fs: Filesystem = dependencies["fs"]
 
-    locator = MultipleDirectoryFileLocator(data_directories, fs)
-    metainfo_file_paths: Set[Path] = collect_metainfo_paths(
-        fs, locator, metainfo_files
-    )
+    metainfo_location_paths = get_valid_paths(fs, args["<paths>"])
+    metainfo_locator = DefaultFileLocator(fs)
+    metainfo_file_paths = collect_metainfo_paths(fs, metainfo_locator, metainfo_location_paths)
+    metainfo_files = {reader.from_path(path) for path in metainfo_file_paths}
+
+    data_reader = DefaultTorrentDataReader(fs)
+    data_directories = get_valid_directories(fs, args["-d"])
+    data_file_locator = MultipleDirectoryFileLocator(data_directories, fs)
+    data_locator: TorrentDataLocator = CustomTorrentDataLocator(data_file_locator, data_reader)
+
     add_service = AddService(client)
 
     # action
-    return AddCommand(add_service, fs, metainfo_file_paths)
+    command = AddCommand(add_service, fs, metainfo_files)
+    if len(data_directories) > 0:
+        find_service = FindService(data_locator)
+        if not args["--force"]:
+            add_service = LinkOnlyAddService(client)
+        command = LinkingAddCommand(find_service, add_service, fs, metainfo_files)
+
+    if args["--dry-run"]:
+        return DryRunAddCommand(command)
+    return command
 
 
 def link_factory(argv: Sequence[str], dependencies: Mapping) -> Command:

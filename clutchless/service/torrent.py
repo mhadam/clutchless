@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.metainfo import MetainfoReader, TorrentDataLocator, TorrentData
 from clutchless.external.result import QueryResult, CommandResult
-from clutchless.external.transmission import TransmissionApi
+from clutchless.external.transmission import TransmissionApi, DryRunClient
 
 
 class AddService:
@@ -52,12 +52,23 @@ class AddService:
             self.error.append(result.error)
 
 
+class LinkOnlyAddService(AddService):
+    def add(self, path: Path):
+        pass
+
+
+class DryRunAddService(AddService):
+    def __init__(self):
+        mock_client = DryRunClient()
+        super().__init__(mock_client)
+
+
 class FindService:
     def __init__(self, data_locator: TorrentDataLocator):
         self.data_locator = data_locator
 
     def find(
-        self, metainfo_files: Set[MetainfoFile]
+            self, metainfo_files: Set[MetainfoFile]
     ) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
         def generate() -> Iterable[TorrentData]:
             for file in metainfo_files:
@@ -84,7 +95,7 @@ class LinkDataService:
         raise RuntimeError("failed incomplete_ids query")
 
     def __query_metainfo_file_by_id(
-        self, incomplete_ids: Set[int]
+            self, incomplete_ids: Set[int]
     ) -> Mapping[int, Path]:
         query_result: QueryResult[
             Mapping[int, Path]
@@ -190,7 +201,7 @@ class OrganizeService:
 
     @staticmethod
     def _sort_url_sets(
-        groups_by_name: Mapping[str, Set[str]]
+            groups_by_name: Mapping[str, Set[str]]
     ) -> "OrderedDict[str, Sequence[str]]":
         result = OrderedDict()
         for (name, urls) in groups_by_name.items():
@@ -199,7 +210,7 @@ class OrganizeService:
 
     @staticmethod
     def _sort_groups_by_name(
-        groups: Mapping[str, Set[str]]
+            groups: Mapping[str, Set[str]]
     ) -> "OrderedDict[str, Set[str]]":
         return OrderedDict(sorted(groups.items()))
 
@@ -224,13 +235,13 @@ class OrganizeService:
 
     @staticmethod
     def _get_folder_name_by_url(
-        announce_urls_by_folder_name: "OrderedDict[str, Sequence[str]]",
-        overrides: Mapping[int, str],
+            announce_urls_by_folder_name: "OrderedDict[str, Sequence[str]]",
+            overrides: Mapping[int, str],
     ) -> Mapping[str, str]:
         """Returns map: folder name by url"""
         result: MutableMapping[str, str] = {}
         for (index, (folder_name, urls)) in enumerate(
-            announce_urls_by_folder_name.items()
+                announce_urls_by_folder_name.items()
         ):
             for url in urls:
                 try:
