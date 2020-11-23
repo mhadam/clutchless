@@ -41,10 +41,17 @@ class Application:
 
     def run(self):
         logging.basicConfig(level=logging.DEBUG)
-        command = CommandCreator(self.dependencies, command_factories).get_command(
-            self.args
-        )
-        result: CommandOutput = command.run()
+        creator = CommandCreator(self.dependencies, command_factories)
+        command, subcommand_args = creator.get_command(self.args)
+        is_dry_run = subcommand_args.get('--dry-run')
+        if is_dry_run is not None and is_dry_run:
+            try:
+                result: CommandOutput = command.dry_run()
+            except NotImplementedError:
+                print("this command does not have a dry-run mode")
+                return
+        else:
+            result: CommandOutput = command.run()
         result.display()
 
 

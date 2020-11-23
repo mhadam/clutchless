@@ -23,6 +23,15 @@ class LinkCommandOutput(CommandOutput):
         pass
 
 
+@dataclass
+class DryRunLinkCommandOutput(CommandOutput):
+    found: Set[TorrentData]
+    rest: Set[MetainfoFile]
+
+    def display(self):
+        pass
+
+
 class LinkCommand(Command):
     def __init__(self, link_service: LinkService, find_service: FindService):
         self.link_service = link_service
@@ -61,18 +70,7 @@ class LinkCommand(Command):
         success, failure = self.handle_found(found, torrent_id_by_metainfo_file)
         return LinkCommandOutput(rest, failure, success)
 
-
-@dataclass
-class DryRunLinkCommandOutput(CommandOutput):
-    found: Set[TorrentData]
-    rest: Set[MetainfoFile]
-
-    def display(self):
-        pass
-
-
-class DryRunLinkCommand(LinkCommand):
-    def run(self) -> DryRunLinkCommandOutput:
+    def dry_run(self) -> DryRunLinkCommandOutput:
         torrent_id_by_metainfo_file = (
             self.link_service.get_incomplete_id_by_metainfo_file()
         )
@@ -116,3 +114,6 @@ class ListLinkCommand(Command):
         metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
         found, rest = self.find_service.find(metainfo_files)
         return LinkListCommandResult(found, rest)
+
+    def dry_run(self) -> CommandOutput:
+        raise NotImplementedError

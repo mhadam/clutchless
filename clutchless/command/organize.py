@@ -54,6 +54,15 @@ class OrganizeAction:
     torrent_id: int
 
 
+@dataclass
+class DryRunOrganizeCommandOutput:
+    actions: Iterable[OrganizeAction]
+
+    def display(self):
+        for action in self.actions:
+            pass
+
+
 class OrganizeCommand(Command):
     def __init__(
         self, raw_spec: str, new_path: Path, organize_service: OrganizeService
@@ -75,6 +84,19 @@ class OrganizeCommand(Command):
         )
         success, fail = self._handle(actions)
         return OrganizeCommandOutput(success, fail)
+
+    def dry_run(self) -> CommandOutput:
+        overrides = TrackerSpec(self.raw_spec)
+        announce_url_to_folder_name = self.organize_service.get_folder_name_by_url(
+            overrides
+        )
+        announce_urls_by_torrent_id = (
+            self.organize_service.get_announce_urls_by_torrent_id()
+        )
+        actions = self._make_actions(
+            announce_url_to_folder_name, announce_urls_by_torrent_id
+        )
+        return DryRunOrganizeCommandOutput(actions)
 
     def _make_actions(
         self,
@@ -169,3 +191,6 @@ class ListOrganizeCommand(Command):
     def run(self) -> ListOrganizeCommandOutput:
         announce_urls_by_folder_name = self.service.get_announce_urls_by_folder_name()
         return ListOrganizeCommandOutput(announce_urls_by_folder_name)
+
+    def dry_run(self) -> CommandOutput:
+        raise NotImplementedError

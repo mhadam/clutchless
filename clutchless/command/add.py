@@ -54,11 +54,21 @@ class LinkingAddOutput(CommandOutput):
         pass
 
 
+@dataclass
+class DryRunAddOutput(CommandOutput):
+    found: MutableSequence[MetainfoFile] = field(default_factory=list)
+    link: MutableSequence[Path] = field(default_factory=list)
+    added_without_data: MutableSequence[MetainfoFile] = field(default_factory=list)
+
+    def display(self):
+        pass
+
+
 class AddCommand(Command):
-    def __init__(self, service: AddService, fs: Filesystem, metainfo_paths: Set[Path]):
+    def __init__(self, service: AddService, fs: Filesystem, metainfo_files: Set[MetainfoFile]):
         self.service = service
         self.fs = fs
-        self.metainfo_paths = metainfo_paths
+        self.metainfo_files = metainfo_files
 
     def __make_output(self) -> AddOutput:
         output = AddOutput()
@@ -73,11 +83,16 @@ class AddCommand(Command):
         return output
 
     def run(self) -> AddOutput:
-        for path in self.metainfo_paths:
-            self.service.add(path)
+        for file in self.metainfo_files:
+            self.service.add(file.path)
         for path in self.service.success:
             self.fs.remove(path)
         return self.__make_output()
+
+    def dry_run(self) -> DryRunAddOutput:
+        output = DryRunAddOutput()
+        output.added_without_data = set(self.metainfo_files)
+        return output
 
 
 class LinkingAddCommand(Command):
@@ -110,27 +125,12 @@ class LinkingAddCommand(Command):
             self.fs.remove(path)
         return self.__make_output()
 
-
-@dataclass
-class DryRunAddOutput(CommandOutput):
-    found: MutableSequence[Path] = field(default_factory=list)
-    link: MutableSequence[Path] = field(default_factory=list)
-    added_without_data: MutableSequence[Path] = field(default_factory=list)
-
-    def display(self):
-        pass
-
-
-DryRunnableAddCommand = Union[AddCommand, LinkingAddCommand]
-
-
-class DryRunAddCommand(Command):
-    def __init__(self, command: DryRunnableAddCommand):
-        self.command = command
-
-    def run(self) -> DryRunAddOutput:
-        _ = self.command.run()
-        found = self.command.add_service.found
-        link = self.command.add_service.link
-        added_without_data = self.command.add_service.added_without_data
-        return DryRunAddOutput(found, link, added_without_data)
+    def dry_run(self) -> DryRunAddOutput:
+        output = DryRunAddOutput()
+        linked, rest = self.find_service.find(self.metainfo_files)
+        for file in linked:
+            output.link.append(file.location)
+            output.found.append(file.metainfo_file)
+        for file in rest:
+            output.added_without_data.append(file)
+        return output

@@ -18,19 +18,6 @@ class PruneClientResult(CommandOutput):
             print("No torrents were pruned from client.")
 
 
-class PruneClientCommand(Command):
-    def __init__(self, service: PruneService):
-        self.service = service
-
-    def run(self) -> CommandOutput:
-        missing_torrent_names_by_id: Mapping[
-            int, str
-        ] = self.service.get_torrent_name_by_id_with_missing_data()
-        for torrent_id in missing_torrent_names_by_id.keys():
-            self.service.remove_torrent(torrent_id)
-        return PruneClientResult(set(missing_torrent_names_by_id.values()))
-
-
 @dataclass
 class DryRunPruneClientResult(CommandOutput):
     pruned_names: Set[str] = field(default_factory=list)
@@ -44,11 +31,19 @@ class DryRunPruneClientResult(CommandOutput):
             print("No torrents would be pruned from client.")
 
 
-class DryRunPruneClientCommand(Command):
+class PruneClientCommand(Command):
     def __init__(self, service: PruneService):
         self.service = service
 
     def run(self) -> CommandOutput:
+        missing_torrent_names_by_id: Mapping[
+            int, str
+        ] = self.service.get_torrent_name_by_id_with_missing_data()
+        for torrent_id in missing_torrent_names_by_id.keys():
+            self.service.remove_torrent(torrent_id)
+        return PruneClientResult(set(missing_torrent_names_by_id.values()))
+
+    def dry_run(self) -> DryRunPruneClientResult:
         missing_torrent_names_by_id: Mapping[
             int, str
         ] = self.service.get_torrent_name_by_id_with_missing_data()

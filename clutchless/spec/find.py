@@ -16,8 +16,7 @@ from typing import Mapping, Set
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem, FileLocator
 from clutchless.external.metainfo import MetainfoReader
-from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths
-from clutchless.spec.shared import DataDirectoryParser
+from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths, get_valid_directories
 
 
 class FindArgs:
@@ -35,8 +34,7 @@ class FindArgs:
 
     def get_data_dirs(self) -> Set[Path]:
         raw_data_directories = self.args["-d"]
-        parser = DataDirectoryParser(self.fs)
-        return parser.parse(raw_data_directories)
+        return get_valid_directories(self.fs, raw_data_directories)
 
     def get_torrent_files_paths(self) -> Set[Path]:
         raw_torrents_paths = set(self.args["<torrents>"])

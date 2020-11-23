@@ -20,17 +20,6 @@ class DryRunPruneFolderCommandOutput(CommandOutput):
             print("No metainfo files would be removed.")
 
 
-class DryRunPruneFolderCommand(Command):
-    def __init__(self, service: PruneService, metainfo_files: Set[MetainfoFile]):
-        self.metainfo_files = metainfo_files
-        self.service = service
-
-    def run(self) -> DryRunPruneFolderCommandOutput:
-        hashes: Set[str] = self.service.get_torrent_hashes()
-        pruned = {file for file in self.metainfo_files if file.info_hash in hashes}
-        return DryRunPruneFolderCommandOutput(pruned)
-
-
 @dataclass
 class PruneFolderCommandOutput(CommandOutput):
     pruned: Set[MetainfoFile]
@@ -62,3 +51,8 @@ class PruneFolderCommand(Command):
         paths = {file.path for file in metainfo_files}
         for path in paths:
             self.fs.remove(path)
+
+    def dry_run(self) -> CommandOutput:
+        hashes: Set[str] = self.service.get_torrent_hashes()
+        pruned = {file for file in self.metainfo_files if file.info_hash in hashes}
+        return DryRunPruneFolderCommandOutput(pruned)

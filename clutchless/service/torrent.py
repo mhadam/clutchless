@@ -57,12 +57,6 @@ class LinkOnlyAddService(AddService):
         pass
 
 
-class DryRunAddService(AddService):
-    def __init__(self):
-        mock_client = DryRunClient()
-        super().__init__(mock_client)
-
-
 class FindService:
     def __init__(self, data_locator: TorrentDataLocator):
         self.data_locator = data_locator
@@ -82,6 +76,14 @@ class FindService:
         }
         rest: Set[MetainfoFile] = metainfo_files - found_metainfo_files
         return found_metainfos, rest
+
+
+class ExcludingFindService(FindService):
+    def find(
+            self, metainfo_files: Set[MetainfoFile]
+    ) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
+        found, rest = super(ExcludingFindService, self).find(metainfo_files)
+        return found, set()
 
 
 class LinkDataService:

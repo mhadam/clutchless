@@ -34,6 +34,15 @@ class ArchiveOutput(CommandOutput):
                     print(f"Failed to move {action.source} because: {error}")
 
 
+@dataclass
+class DryRunArchiveOutput(CommandOutput):
+    actions: Sequence[ArchiveAction] = field(default_factory=list)
+    query_failure: Optional[str] = None
+
+    def display(self):
+        pass
+
+
 def create_archive_actions(
     torrent_file_by_id: Mapping[int, Path], torrent_name_by_id: Mapping[int, str]
 ) -> Sequence[ArchiveAction]:
@@ -103,3 +112,13 @@ class ArchiveCommand(Command):
         return handle_data(
             self.fs, self.archive_path, torrent_file_by_id, torrent_name_by_id
         )
+
+    def dry_run(self) -> CommandOutput:
+        try:
+            torrent_file_by_id = self.__get_torrent_file_by_id()
+            ids = set(torrent_file_by_id.keys())
+            torrent_name_by_id = self.__get_torrent_name_by_id(ids)
+        except RuntimeError as e:
+            return DryRunArchiveOutput(query_failure=str(e))
+        actions = create_archive_actions(torrent_file_by_id, torrent_name_by_id)
+        return DryRunArchiveOutput(actions)

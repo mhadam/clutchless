@@ -51,3 +51,6 @@ class FindCommand(Command):
         found, rest = self.find_service.find(self.metainfo_files)
         output = FindOutput(found, rest)
         return output
+
+    def dry_run(self) -> CommandOutput:
+        raise NotImplementedError

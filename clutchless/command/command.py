@@ -1,4 +1,4 @@
-from typing import Protocol, Sequence, Mapping, Any
+from typing import Protocol, Sequence, Mapping, Any, Tuple
 
 
 class CommandOutput(Protocol):
@@ -11,6 +11,9 @@ class CommandOutput(Protocol):
 class Command(Protocol):
     """Protocol for commands."""
 
+    def dry_run(self) -> CommandOutput:
+        raise NotImplementedError
+
     def run(self) -> CommandOutput:
         raise NotImplementedError
 
@@ -20,6 +23,9 @@ class CommandError(Exception):
         self.message = message
 
 
+CommandFactoryResult = Tuple[Command, Mapping]
+
+
 class CommandFactory(Protocol):
-    def __call__(self, argv: Sequence[str], dependencies: Mapping[str, Any]) -> Command:
+    def __call__(self, argv: Sequence[str], dependencies: Mapping[str, Any]) -> CommandFactoryResult:
         raise NotImplementedError

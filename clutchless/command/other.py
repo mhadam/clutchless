@@ -9,6 +9,9 @@ class MissingCommandOutput(CommandOutput):
 
 
 class MissingCommand(Command):
+    def dry_run(self) -> CommandOutput:
+        raise NotImplementedError
+
     def run(self) -> CommandOutput:
         return MissingCommandOutput()
 
