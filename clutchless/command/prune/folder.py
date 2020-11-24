@@ -50,7 +50,8 @@ class PruneFolderCommand(Command):
     def __remove_torrents(self, metainfo_files: Set[MetainfoFile]):
         paths = {file.path for file in metainfo_files}
         for path in paths:
-            self.fs.remove(path)
+            if path is not None:
+                self.fs.remove(path)
 
     def dry_run(self) -> CommandOutput:
         hashes: Set[str] = self.service.get_torrent_hashes()

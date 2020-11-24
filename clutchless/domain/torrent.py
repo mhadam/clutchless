@@ -32,7 +32,7 @@ class MetainfoFile:
     @property
     def files(self) -> Sequence[TorrentFile]:
         """These are defined relative a directory named by 'name' property, i.e. data_location/torrent_name/{file...}"""
-        files = self.info.get("files")
+        files = self.info.get("files", list())
         return [convert_file(file) for file in files]
 
     @property

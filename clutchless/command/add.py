@@ -44,10 +44,10 @@ class LinkingAddOutput(CommandOutput):
             self.deleted_torrents.append(path)
 
     def add_linked_successes(
-        self, metainfo_path: Sequence[Path], data_path: Sequence[Path]
+        self, metainfo_paths: Sequence[Path], data_paths: Sequence[Path]
     ):
         # handle linked
-        for (metainfo_path, data_path) in zip(metainfo_path, data_path):
+        for (metainfo_path, data_path) in zip(metainfo_paths, data_paths):
             self.linked_torrents[metainfo_path] = data_path
 
     def display(self):
@@ -58,7 +58,7 @@ class LinkingAddOutput(CommandOutput):
 class DryRunAddOutput(CommandOutput):
     found: MutableSequence[MetainfoFile] = field(default_factory=list)
     link: MutableSequence[Path] = field(default_factory=list)
-    added_without_data: MutableSequence[MetainfoFile] = field(default_factory=list)
+    added_without_data: Set[MetainfoFile] = field(default_factory=set)
 
     def display(self):
         pass
@@ -84,7 +84,10 @@ class AddCommand(Command):
 
     def run(self) -> AddOutput:
         for file in self.metainfo_files:
-            self.service.add(file.path)
+            if file.path is not None:
+                self.service.add(file.path)
+            else:
+                pass  # todo: log here perhaps
         for path in self.service.success:
             self.fs.remove(path)
         return self.__make_output()
@@ -117,10 +120,13 @@ class LinkingAddCommand(Command):
 
     def run(self) -> LinkingAddOutput:
         linked, rest = self.find_service.find(self.metainfo_files)
-        for file in linked:
-            self.add_service.add_with_data(file.metainfo_file.path, file.location)
-        for file in rest:
-            self.add_service.add(file.path)
+        for linked_file in linked:
+            metainfo_file = linked_file.metainfo_file
+            if metainfo_file.path is not None:
+                self.add_service.add_with_data(metainfo_file.path, linked_file.location)
+        for rest_file in rest:
+            if rest_file.path is not None:
+                self.add_service.add(rest_file.path)
         for path in self.add_service.success:
             self.fs.remove(path)
         return self.__make_output()
@@ -128,9 +134,9 @@ class LinkingAddCommand(Command):
     def dry_run(self) -> DryRunAddOutput:
         output = DryRunAddOutput()
         linked, rest = self.find_service.find(self.metainfo_files)
-        for file in linked:
-            output.link.append(file.location)
-            output.found.append(file.metainfo_file)
-        for file in rest:
-            output.added_without_data.append(file)
+        for linked_file in linked:
+            output.link.append(linked_file.location)
+            output.found.append(linked_file.metainfo_file)
+        for rest_file in rest:
+            output.added_without_data.add(rest_file)
         return output

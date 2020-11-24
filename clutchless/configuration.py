@@ -7,7 +7,7 @@ from docopt import docopt
 from clutchless.command.add import AddCommand, LinkingAddCommand
 from clutchless.command.archive import ArchiveCommand
 from clutchless.command.command import (
-    CommandFactory, CommandFactoryResult,
+    CommandFactory, CommandFactoryResult, Command,
 )
 from clutchless.command.find import FindCommand
 from clutchless.command.link import LinkCommand, ListLinkCommand
@@ -53,10 +53,9 @@ def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRes
     from clutchless.spec import add as add_command
 
     args = docopt(doc=add_command.__doc__, argv=argv)
+    fs: Filesystem = dependencies["fs"]
     if not args["--delete"]:
-        fs: Filesystem = DryRunFilesystem()
-    else:
-        fs: Filesystem = dependencies["fs"]
+        fs = DryRunFilesystem()
 
     metainfo_location_paths = get_valid_paths(fs, args["<paths>"])
     metainfo_locator = DefaultFileLocator(fs)
@@ -71,7 +70,7 @@ def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRes
     add_service = AddService(client)
 
     # action
-    command = AddCommand(add_service, fs, metainfo_files)
+    command: Command = AddCommand(add_service, fs, metainfo_files)
     if len(data_directories) > 0:
         find_service = FindService(data_locator)
         if not args["--force"]:

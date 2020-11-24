@@ -110,8 +110,8 @@ class DefaultFileLocator(FileLocator):
         def xnor(x: bool, y: bool) -> bool:
             return (x or not y) and (not x or y)
 
-        def filter_wanted_type(pair: Iterable[Tuple[Path, bool]]) -> bool:
-            _, is_dir = pair
+        def filter_wanted_type(pair: Tuple[Path, bool]) -> bool:
+            is_dir = pair[1]
             return xnor(is_dir, want_dir)
 
         wanted_pairs = filter(filter_wanted_type, is_dir_pairs)
@@ -149,6 +149,7 @@ class MultipleDirectoryFileLocator(FileLocator):
             result = locator.locate(filename, is_dir)
             if result is not None:
                 return result
+        return None
 
     def collect(self, extension: str) -> Iterable[Path]:
         for _, locator in self.locators.items():

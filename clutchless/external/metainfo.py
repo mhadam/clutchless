@@ -69,3 +69,4 @@ class CustomTorrentDataLocator(TorrentDataLocator):
         if found is not None:
             if self.data_reader.verify(found, file):
                 return TorrentData(file, found)
+        return None

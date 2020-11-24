@@ -89,7 +89,7 @@ class ArchiveCommand(Command):
             Mapping[int, Path]
         ] = self.client.get_torrent_files_by_id()
         if query_result.success:
-            return query_result.value
+            return query_result.value or dict()
         raise RuntimeError("query failed: get_torrent_files_by_id")
 
     def __get_torrent_name_by_id(self, ids: Set[int]) -> Mapping[int, str]:
@@ -97,7 +97,7 @@ class ArchiveCommand(Command):
             Mapping[int, str]
         ] = self.client.get_torrent_name_by_id(ids)
         if query_result.success:
-            return query_result.value
+            return query_result.value or dict()
         raise RuntimeError("query failed: get_torrent_name_by_id")
 
     def run(self) -> ArchiveOutput:

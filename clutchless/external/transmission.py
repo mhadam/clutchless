@@ -221,7 +221,7 @@ class ClutchApi(TransmissionApi):
         self, ids: IdsArg, fields: Set[str] = None
     ) -> QueryResult[Mapping]:
         if fields is None:
-            fields = frozenset()
+            fields = set()
         return self.client.torrent.accessor(ids, fields)
 
     def get_announce_urls(self) -> QueryResult[Set[str]]:
@@ -278,7 +278,7 @@ class ClutchApi(TransmissionApi):
                 f"torrent with id {torrent_id} not returned in result"
             )
         else:
-            return Path(torrents[0].download_dir)
+            return QueryResult(value=Path(torrents[0].download_dir))
 
     def get_torrent_files_by_id(self) -> QueryResult[Mapping[int, Path]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(

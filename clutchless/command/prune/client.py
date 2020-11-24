@@ -7,7 +7,7 @@ from clutchless.service.torrent import PruneService
 
 @dataclass
 class PruneClientResult(CommandOutput):
-    pruned_names: Set[str] = field(default_factory=list)
+    pruned_names: Set[str] = field(default_factory=set)
 
     def display(self):
         if len(self.pruned_names) > 0:
@@ -20,7 +20,7 @@ class PruneClientResult(CommandOutput):
 
 @dataclass
 class DryRunPruneClientResult(CommandOutput):
-    pruned_names: Set[str] = field(default_factory=list)
+    pruned_names: Set[str] = field(default_factory=set)
 
     def display(self):
         if len(self.pruned_names) > 0:
