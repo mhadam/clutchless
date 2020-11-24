@@ -18,6 +18,7 @@ colorama = "^0.4.4"
 transmission-clutch = "^4.2.1"
 torrentool = "^1.1.0"
 texttable = "^1.6.3"
+docopt = "^0.6.2"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.2.1"
