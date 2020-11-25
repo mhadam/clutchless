@@ -1,6 +1,6 @@
 import itertools
 from pathlib import Path
-from typing import Mapping, Sequence, Set, Union, MutableMapping, Protocol
+from typing import Mapping, Sequence, Set, Union, MutableMapping, Protocol, cast
 
 from clutch import Client
 from clutch.network.rpc.message import Response
@@ -75,9 +75,6 @@ class TransmissionApi(Protocol):
     def get_incomplete_torrent_files(self) -> QueryResult[Set[Path]]:
         raise NotImplementedError
 
-    def get_torrents(self, ids, fields) -> QueryResult[Mapping]:
-        raise NotImplementedError
-
     def get_announce_urls(self) -> QueryResult[Set[str]]:
         raise NotImplementedError
 
@@ -121,7 +118,7 @@ class ClutchApi(TransmissionApi):
             "paused": True,
         }
         response: Response[TorrentAdd] = self.client.torrent.add(arguments)
-        if response.result != "success":
+        if response.result != "success" or response.arguments is None:
             return CommandResult(error=response.result, success=False)
         if response.arguments.torrent_added:
             return CommandResult()
@@ -136,7 +133,7 @@ class ClutchApi(TransmissionApi):
             "paused": True,
         }
         response: Response[TorrentAdd] = self.client.torrent.add(arguments)
-        if response.result != "success":
+        if response.result != "success" or response.arguments is None:
             return CommandResult(error=response.result, success=False)
         if response.arguments.torrent_added:
             return CommandResult()
@@ -146,22 +143,28 @@ class ClutchApi(TransmissionApi):
 
     def get_torrent_name_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, str]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["id", "percent_done", "name"], ids=ids
+            fields={"id", "percent_done", "name"}, ids=ids
         )
         if response.result != "success":
             return QueryResult(success=False, error=response.result)
-        return QueryResult(
-            {torrent.id: torrent.name for torrent in response.arguments.torrents}
-        )
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        result = {}
+        for torrent in torrents:
+            if torrent.id is not None and torrent.name is not None:
+                result[torrent.id] = torrent.name
+        return QueryResult(value=result)
 
     def get_partial_torrents(self) -> QueryResult[Mapping[str, PartialTorrent]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["hash_string", "wanted", "files"]
+            fields={"hash_string", "wanted", "files"}
         )
         if response.result != "success":
             return QueryResult(success=False, error=response.result)
         partial_torrents: MutableMapping[str, PartialTorrent] = {}
-        for torrent in response.arguments.torrents:
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        for torrent in torrents:
             wanted_files = {file for file in torrent.wanted}
             file_names = {file.name for file in torrent.files}
             wanted_file_names = set(itertools.compress(file_names, wanted_files))
@@ -173,65 +176,64 @@ class ClutchApi(TransmissionApi):
 
     def get_incomplete_ids(self) -> QueryResult[Set[int]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["id", "percent_done"]
+            fields={"id", "percent_done"}
         )
-        response_torrents: Sequence[TorrentAccessorObject] = response.arguments.torrents
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         return QueryResult(
             value={
                 torrent.id
-                for torrent in response_torrents
+                for torrent in torrents
                 if torrent.percent_done == 0.0
             }
         )
 
     def get_metainfo_file_path(self, torrent_id: int) -> QueryResult[Path]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["torrent_file"]
+            fields={"torrent_file"}
         )
-        response_torrents: Sequence[TorrentAccessorObject] = response.arguments.torrents
-        if len(response_torrents) != 1:
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        if len(torrents) != 1:
             return QueryResult(error="expected only one result", success=False)
-        return QueryResult(value=Path(response_torrents[0].torrent_file))
+        return QueryResult(value=Path(torrents[0].torrent_file))
 
     def get_metainfo_file_paths_by_id(
         self, ids: Set[int]
     ) -> QueryResult[Mapping[int, Path]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["torrent_file", "percent_done"]
+            fields={"torrent_file", "percent_done"}
         )
-        response_torrents: Sequence[TorrentAccessorObject] = response.arguments.torrents
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         return QueryResult(
-            value={torrent.id: torrent.torrent_file for torrent in response_torrents}
+            value={torrent.id: Path(torrent.torrent_file) for torrent in torrents}
         )
 
     def get_incomplete_torrent_files(self) -> QueryResult[Set[Path]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["torrent_file", "percent_done"]
+            fields={"torrent_file", "percent_done"}
         )
-        response_torrents: Sequence[TorrentAccessorObject] = response.arguments.torrents
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         return QueryResult(
             value={
-                torrent.torrent_file
-                for torrent in response_torrents
+                Path(torrent.torrent_file)
+                for torrent in torrents
                 if torrent.percent_done == 0.0
             }
         )
 
-    def get_torrents(
-        self, ids: IdsArg, fields: Set[str] = None
-    ) -> QueryResult[Mapping]:
-        if fields is None:
-            fields = set()
-        return self.client.torrent.accessor(ids, fields)
-
     def get_announce_urls(self) -> QueryResult[Set[str]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["trackers"]
+            fields={"trackers"}
         )
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         return QueryResult(
             value={
                 tracker.announce
-                for torrent in response.arguments.torrents
+                for torrent in torrents
                 for tracker in torrent.trackers
             }
         )
@@ -241,12 +243,14 @@ class ClutchApi(TransmissionApi):
             return {tracker.announce for tracker in torrent.trackers}
 
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["trackers"]
+            fields={"trackers"}
         )
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         return QueryResult(
             value={
                 torrent.id: get_announce_urls(torrent)
-                for torrent in response.arguments.torrents
+                for torrent in torrents
             }
         )
 
@@ -268,11 +272,12 @@ class ClutchApi(TransmissionApi):
 
     def get_torrent_location(self, torrent_id: int) -> QueryResult[Path]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["download_dir"], ids=torrent_id
+            fields={"download_dir"}, ids=torrent_id
         )
         if response.result != "success":
             raise TransmissionError(f"clutch failure: {response.result}")
-        torrents = response.arguments.torrents
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         if len(torrents) != 1:
             raise TransmissionError(
                 f"torrent with id {torrent_id} not returned in result"
@@ -282,40 +287,46 @@ class ClutchApi(TransmissionApi):
 
     def get_torrent_files_by_id(self) -> QueryResult[Mapping[int, Path]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["id", "torrent_file"]
+            fields={"id", "torrent_file"}
         )
         if response.result != "success":
             QueryResult(success=False, error=response.result)
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         return QueryResult(
             value={
-                torrent.id: torrent.torrent_file
-                for torrent in response.arguments.torrents
+                torrent.id: Path(torrent.torrent_file)
+                for torrent in torrents
             }
         )
 
     def get_torrent_hashes_by_id(self) -> QueryResult[Mapping[int, str]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["id", "hash_string"]
+            fields={"id", "hash_string"}
         )
         if response.result != "success":
             return QueryResult(success=False, error=response.result)
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         return QueryResult(
             value={
                 torrent.id: torrent.hash_string
-                for torrent in response.arguments.torrents
+                for torrent in torrents
             }
         )
 
     def get_torrent_ids_by_hash(self) -> QueryResult[Mapping[str, int]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["id", "hash_string"]
+            fields={"id", "hash_string"}
         )
         if response.result != "success":
             return QueryResult(success=False, error=response.result)
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         return QueryResult(
             value={
                 torrent.hash_string: torrent.id
-                for torrent in response.arguments.torrents
+                for torrent in torrents
             }
         )
 
@@ -323,12 +334,14 @@ class ClutchApi(TransmissionApi):
         self,
     ) -> QueryResult[Mapping[int, str]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields=["id", "error_string", "error", "name"]
+            fields={"id", "error_string", "error", "name"}
         )
         if response.result != "success":
             return QueryResult(error=response.result, success=False)
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
         result: MutableMapping[int, str] = {}
-        for torrent in response.arguments.torrents:
+        for torrent in torrents:
             if torrent.error == 3:
                 result[torrent.id] = torrent.name
         return QueryResult(value=result)
