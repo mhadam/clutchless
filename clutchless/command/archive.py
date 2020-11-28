@@ -17,30 +17,30 @@ class ArchiveAction:
 
 @dataclass
 class ArchiveOutput(CommandOutput):
+    destination: Path
     actions: Sequence[ArchiveAction] = field(default_factory=list)
     copied: Set[int] = field(default_factory=set)
     copy_failure: MutableMapping[int, str] = field(default_factory=dict)
     query_failure: Optional[str] = None
 
+    def dry_run_display(self):
+        if len(self.actions) > 0:
+            print(f"Will move the following torrents to {self.destination}:")
+            for action in self.actions:
+                print(f"{action.source}")
+
     def display(self):
         if self.query_failure is not None:
             print(f"Query failed: {self.query_failure}")
         else:
-            for action in self.actions:
-                if action.torrent_id in self.copied:
-                    print(f"Copied {action.name}")
-                if action.torrent_id in self.copy_failure:
-                    error = self.copy_failure[action.torrent_id]
-                    print(f"Failed to move {action.source} because: {error}")
-
-
-@dataclass
-class DryRunArchiveOutput(CommandOutput):
-    actions: Sequence[ArchiveAction] = field(default_factory=list)
-    query_failure: Optional[str] = None
-
-    def display(self):
-        pass
+            if len(self.actions) > 0:
+                print(f"Copied following to {self.destination}:")
+                for action in self.actions:
+                    if action.torrent_id in self.copied:
+                        print(f"Copied {action.name} from {action.source}")
+                    if action.torrent_id in self.copy_failure:
+                        error = self.copy_failure[action.torrent_id]
+                        print(f"Failed to move {action.source} because: {error}")
 
 
 def create_archive_actions(
@@ -72,7 +72,7 @@ def handle_data(
     torrent_name_by_id: Mapping[int, str],
 ) -> ArchiveOutput:
     actions = create_archive_actions(torrent_file_by_id, torrent_name_by_id)
-    output = ArchiveOutput(actions=actions)
+    output = ArchiveOutput(destination=archive_path, actions=actions)
     for action in actions:
         output = handle_action(fs, archive_path, output, action)
     return output
@@ -106,8 +106,7 @@ class ArchiveCommand(Command):
             ids = set(torrent_file_by_id.keys())
             torrent_name_by_id = self.__get_torrent_name_by_id(ids)
         except RuntimeError as e:
-            return ArchiveOutput(query_failure=str(e))
-
+            return ArchiveOutput(self.archive_path, query_failure=str(e))
         self.fs.create_dir(self.archive_path)
         return handle_data(
             self.fs, self.archive_path, torrent_file_by_id, torrent_name_by_id
@@ -119,6 +118,6 @@ class ArchiveCommand(Command):
             ids = set(torrent_file_by_id.keys())
             torrent_name_by_id = self.__get_torrent_name_by_id(ids)
         except RuntimeError as e:
-            return DryRunArchiveOutput(query_failure=str(e))
+            return ArchiveOutput(self.archive_path, query_failure=str(e))
         actions = create_archive_actions(torrent_file_by_id, torrent_name_by_id)
-        return DryRunArchiveOutput(actions)
+        return ArchiveOutput(self.archive_path, actions)

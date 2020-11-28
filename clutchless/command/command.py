@@ -4,6 +4,9 @@ from typing import Protocol, Sequence, Mapping, Any, Tuple
 class CommandOutput(Protocol):
     """Protocol for command result."""
 
+    def dry_run_display(self):
+        raise NotImplementedError
+
     def display(self):
         raise NotImplementedError
 

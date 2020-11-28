@@ -34,8 +34,9 @@ def test_add_run_success(mocker: MockerFixture):
     for path in metainfo_paths:
         fs.remove.assert_any_call(path)
 
+    added_paths = {torrent.path for torrent in output.added_torrents}
     for path in metainfo_paths:
-        assert path in output.added_torrents
+        assert path in added_paths
 
 
 def test_add_run_duplicate(mocker: MockerFixture):
@@ -54,7 +55,7 @@ def test_add_run_duplicate(mocker: MockerFixture):
     output: AddOutput = command.run()
 
     fs.remove.assert_not_called()
-    assert metainfo_path in output.duplicated_torrents
+    assert metainfo_file in output.duplicated_torrents
 
 
 def test_add_run_unknown(mocker: MockerFixture):
@@ -72,7 +73,7 @@ def test_add_run_unknown(mocker: MockerFixture):
     output: AddOutput = command.run()
 
     fs.remove.assert_not_called()
-    assert output.failed_torrents[metainfo_path] == "unknown"
+    assert output.failed_torrents[metainfo_file] == "unknown"
 
 
 def test_add_linking_unknown(mocker: MockerFixture):
@@ -101,7 +102,7 @@ def test_add_linking_unknown(mocker: MockerFixture):
 
     fs.remove.assert_not_called()
 
-    assert output.failed_torrents == {metainfo_path: "unknown"}
+    assert output.failed_torrents == {metainfo_file: "unknown"}
 
 
 def test_add_linking_success(mocker: MockerFixture):
@@ -128,7 +129,7 @@ def test_add_linking_success(mocker: MockerFixture):
 
     fs.remove.assert_any_call(metainfo_path)
 
-    assert output.added_torrents == [metainfo_path]
+    assert output.added_torrents == [metainfo_file]
 
 
 def test_add_linking_duplicate(mocker: MockerFixture):
@@ -157,4 +158,4 @@ def test_add_linking_duplicate(mocker: MockerFixture):
 
     fs.remove.assert_not_called()
 
-    assert output.duplicated_torrents == {metainfo_path: "duplicate"}
+    assert output.duplicated_torrents == {metainfo_file: "duplicate"}

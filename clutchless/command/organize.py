@@ -27,7 +27,15 @@ class OrganizeFailure:
 
 
 @dataclass
+class OrganizeAction:
+    new_path: Path
+    torrent_id: int
+
+
+@dataclass
 class OrganizeCommandOutput(CommandOutput):
+    files: Mapping[int, MetainfoFile] = field(default_factory=dict)
+    actions: Sequence[OrganizeAction] = field(default_factory=list)
     success: Sequence[OrganizeSuccess] = field(default_factory=list)
     failure: Sequence[OrganizeFailure] = field(default_factory=list)
 
@@ -47,20 +55,14 @@ class OrganizeCommandOutput(CommandOutput):
                 metainfo = failure.metainfo_file
                 print(f"{metainfo.name} because of: {failure.failure}")
 
-
-@dataclass
-class OrganizeAction:
-    new_path: Path
-    torrent_id: int
-
-
-@dataclass
-class DryRunOrganizeCommandOutput:
-    actions: Iterable[OrganizeAction]
-
-    def display(self):
-        for action in self.actions:
-            pass
+    def dry_run_display(self):
+        if len(self.actions) > 0:
+            print(f"Would organize the following torrents:")
+            for action in self.actions:
+                file = self.files[action.torrent_id]
+                print(f"{file.name} to {action.new_path}")
+        else:
+            "Nothing to do."
 
 
 class OrganizeCommand(Command):
@@ -70,6 +72,12 @@ class OrganizeCommand(Command):
         self.raw_spec = raw_spec
         self.new_path = new_path
         self.organize_service = organize_service
+
+    def _get_files(self, ids: Set[int]) -> Mapping[int, MetainfoFile]:
+        result = dict()
+        for torrent_id in ids:
+            result[torrent_id] = self.organize_service.get_metainfo_file(torrent_id)
+        return result
 
     def run(self) -> OrganizeCommandOutput:
         overrides = TrackerSpec(self.raw_spec)
@@ -83,7 +91,7 @@ class OrganizeCommand(Command):
             announce_url_to_folder_name, announce_urls_by_torrent_id
         )
         success, fail = self._handle(actions)
-        return OrganizeCommandOutput(success, fail)
+        return OrganizeCommandOutput(success=success, failure=fail)
 
     def dry_run(self) -> CommandOutput:
         overrides = TrackerSpec(self.raw_spec)
@@ -96,7 +104,8 @@ class OrganizeCommand(Command):
         actions = self._make_actions(
             announce_url_to_folder_name, announce_urls_by_torrent_id
         )
-        return DryRunOrganizeCommandOutput(actions)
+        files = self._get_files({action.torrent_id for action in actions})
+        return OrganizeCommandOutput(files, list(actions))
 
     def _make_actions(
         self,
@@ -150,6 +159,9 @@ class ListOrganizeCommandOutput(CommandOutput):
             self.__print_entries()
         else:
             self.__print_if_empty()
+
+    def dry_run_display(self):
+        raise NotImplementedError
 
     @staticmethod
     def __print_if_empty():

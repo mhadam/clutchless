@@ -8,21 +8,16 @@ from clutchless.service.torrent import PruneService
 
 
 @dataclass
-class DryRunPruneFolderCommandOutput(CommandOutput):
+class PruneFolderCommandOutput(CommandOutput):
     pruned: Set[MetainfoFile]
 
-    def display(self):
+    def dry_run_display(self):
         if len(self.pruned) > 0:
             print("The following metainfo files would be removed:")
             for file in self.pruned:
                 print(f"{file.name} at {file.path}")
         else:
             print("No metainfo files would be removed.")
-
-
-@dataclass
-class PruneFolderCommandOutput(CommandOutput):
-    pruned: Set[MetainfoFile]
 
     def display(self):
         if len(self.pruned) > 0:
@@ -56,4 +51,4 @@ class PruneFolderCommand(Command):
     def dry_run(self) -> CommandOutput:
         hashes: Set[str] = self.service.get_torrent_hashes()
         pruned = {file for file in self.metainfo_files if file.info_hash in hashes}
-        return DryRunPruneFolderCommandOutput(pruned)
+        return PruneFolderCommandOutput(pruned)

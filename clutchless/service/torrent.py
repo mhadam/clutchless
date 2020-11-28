@@ -7,7 +7,7 @@ from typing import (
     Mapping,
     Tuple,
     Sequence,
-    MutableMapping, Optional,
+    MutableMapping, Optional, cast,
 )
 from urllib.parse import urlparse
 
@@ -20,35 +20,37 @@ from clutchless.external.transmission import TransmissionApi, DryRunClient
 class AddService:
     def __init__(self, api: TransmissionApi):
         self.api = api
-        self.success: MutableSequence[Path] = []
-        self.added_without_data: MutableSequence[Path] = []
+        self.success: MutableSequence[MetainfoFile] = []
+        self.added_without_data: MutableSequence[MetainfoFile] = []
         # these are added together (if linking)
         # found -> metainfo file path
-        self.found: MutableSequence[Path] = []
+        self.found: MutableSequence[MetainfoFile] = []
         # link -> data location path
         self.link: MutableSequence[Path] = []
 
         # these are added together
-        self.fail: MutableSequence[Path] = []
+        self.fail: MutableSequence[MetainfoFile] = []
         self.error: MutableSequence[str] = []
 
-    def add(self, path: Path):
+    def add(self, file: MetainfoFile):
+        path = cast(Path, file.path)
         result = self.api.add_torrent(path)
         if result.success:
-            self.success.append(path)
-            self.added_without_data.append(path)
+            self.success.append(file)
+            self.added_without_data.append(file)
         else:
-            self.fail.append(path)
+            self.fail.append(file)
             self.error.append(result.error or "empty error string")
 
-    def add_with_data(self, metainfo_path: Path, data_path: Path):
-        result = self.api.add_torrent_with_files(metainfo_path, data_path)
+    def add_with_data(self, file: MetainfoFile, data_path: Path):
+        path = cast(Path, file.path)
+        result = self.api.add_torrent_with_files(path, data_path)
         if result.success:
-            self.success.append(metainfo_path)
-            self.found.append(metainfo_path)
+            self.success.append(file)
+            self.found.append(file)
             self.link.append(data_path)
         else:
-            self.fail.append(metainfo_path)
+            self.fail.append(file)
             self.error.append(result.error or "empty error string")
 
 

@@ -20,16 +20,36 @@ class LinkCommandOutput(CommandOutput):
     success: Sequence[TorrentData] = field(default_factory=list)
 
     def display(self):
-        pass
+        success_count = len(self.success)
+        fail_count = len(self.fail)
+        no_matching_data_count = len(self.no_matching_data)
+        if success_count > 0:
+            print(f"Linked the following torrents:")
+            for linked in self.success:
+                name = linked.metainfo_file.name
+                print(f"{name} at {linked.location}")
+        if no_matching_data_count > 0:
+            print(f"Couldn't find the data for the following torrents:")
+            for unmatched in self.no_matching_data:
+                print(f"{unmatched.name}")
+        if fail_count > 0:
+            print(f"Failed to link the following torrents:")
+            for fail in self.fail:
+                name = fail.torrent_data.metainfo_file.name
+                print(f"{name} because: {fail.error}")
 
-
-@dataclass
-class DryRunLinkCommandOutput(CommandOutput):
-    found: Set[TorrentData]
-    rest: Set[MetainfoFile]
-
-    def display(self):
-        pass
+    def dry_run_display(self):
+        found_count = len(self.success)
+        no_matching_data_count = len(self.no_matching_data)
+        if found_count > 0:
+            print(f"Found the following torrents:")
+            for linked in self.success:
+                name = linked.metainfo_file.name
+                print(f"{name} at {linked.location}")
+        if no_matching_data_count > 0:
+            print(f"Couldn't find data for the following torrents:")
+            for unmatched in self.no_matching_data:
+                print(f"{unmatched.name}")
 
 
 class LinkCommand(Command):
@@ -70,13 +90,13 @@ class LinkCommand(Command):
         success, failure = self.handle_found(found, torrent_id_by_metainfo_file)
         return LinkCommandOutput(rest, failure, success)
 
-    def dry_run(self) -> DryRunLinkCommandOutput:
+    def dry_run(self) -> LinkCommandOutput:
         torrent_id_by_metainfo_file = (
             self.link_service.get_incomplete_id_by_metainfo_file()
         )
         metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
         found, rest = self.find_service.find(metainfo_files)
-        return DryRunLinkCommandOutput(found, rest)
+        return LinkCommandOutput(success=list(found), no_matching_data=rest)
 
 
 @dataclass
@@ -100,6 +120,9 @@ class LinkListCommandResult(CommandOutput):
 
         if not (is_any_found or is_any_rest):
             print("No missing data torrents found.")
+
+    def dry_run_display(self):
+        raise NotImplementedError
 
 
 class ListLinkCommand(Command):

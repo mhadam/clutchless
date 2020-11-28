@@ -37,6 +37,9 @@ class FindOutput(CommandOutput):
                 self.print_missing(file)
         deinit()
 
+    def dry_run_display(self):
+        raise NotImplementedError
+
 
 class FindCommand(Command):
     def __init__(

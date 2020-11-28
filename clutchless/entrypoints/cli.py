@@ -44,15 +44,20 @@ class Application:
         creator = CommandCreator(self.dependencies, command_factories)
         command, subcommand_args = creator.get_command(self.args)
         is_dry_run = subcommand_args.get('--dry-run')
-        if is_dry_run is not None and is_dry_run:
-            try:
-                result: CommandOutput = command.dry_run()
-            except NotImplementedError:
-                print("this command does not have a dry-run mode")
-                return
-        else:
-            result: CommandOutput = command.run()
-        result.display()
+        try:
+            if is_dry_run is not None and is_dry_run:
+                try:
+                    result: CommandOutput = command.dry_run()
+                    result.dry_run_display()
+                except NotImplementedError:
+                    print("this command does not have a dry-run mode")
+                    return
+            else:
+                result: CommandOutput = command.run()
+                result.display()
+        except ConnectionRefusedError:
+            print("Connection failed - is Transmission running?")
+            return
 
 
 def parse_logging_level(args: Mapping) -> int:

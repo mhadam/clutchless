@@ -22,5 +22,8 @@ class InvalidCommandOutput(CommandOutput):
 
 
 class InvalidCommand(Command):
+    def dry_run(self) -> CommandOutput:
+        raise NotImplementedError
+
     def run(self) -> CommandOutput:
         return InvalidCommandOutput()

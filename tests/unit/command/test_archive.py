@@ -26,23 +26,23 @@ def test_create_actions():
 
 def test_handle_action_success(mocker: MockerFixture):
     fs = mocker.Mock(spec=Filesystem)
-    output = ArchiveOutput()
+    output = ArchiveOutput(Path("/", "archive"))
     action = ArchiveAction(1, "test_name", Path("/", "test_path"))
 
     new_output = handle_action(fs, Path("/", "archive"), output, action)
 
-    assert new_output == ArchiveOutput(copied={1})
+    assert new_output == ArchiveOutput(Path("/", "archive"), copied={1})
 
 
 def test_handle_action_fail(mocker: MockerFixture):
     fs = mocker.Mock(spec=Filesystem)
     fs.copy.side_effect = CopyError("test_error")
-    output = ArchiveOutput()
+    output = ArchiveOutput(Path("/", "archive"))
     action = ArchiveAction(1, "test_name", Path("/", "test_path"))
 
     new_output = handle_action(fs, Path("/", "archive"), output, action)
 
-    assert new_output == ArchiveOutput(copy_failure={1: "test_error"})
+    assert new_output == ArchiveOutput(Path("/", "archive"), copy_failure={1: "test_error"})
 
 
 def test_archive_success(mocker: MockerFixture):
