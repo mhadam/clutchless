@@ -41,38 +41,38 @@ The ``-h`` flag can be used to bring up documentation, e.g. ``clutchless -h``::
     A tool for working with torrents and their data in the Transmission BitTorrent client.
 
     Usage:
-        clutchless [options] <command> [<args> ...]
+        clutchless [options] [-v ...] <command> [<args> ...]
 
     Options:
         -a <address>, --address <address>   Address for Transmission (default is http://localhost:9091/transmission/rpc).
         -h, --help  Show this screen.
-        --version   Show version.
+        -v, --verbose   Verbose terminal output (multiple -v increase verbosity).
 
     The available clutchless commands are:
-        add         Add torrents to Transmission (with or without data).
-        find        Locate data that belongs to torrent files.
-        link        For torrents with missing data in Transmission, find the data and fix the location.
-        archive     Copy .torrent files from Transmission for backup.
+        add         Add metainfo files to Transmission (with or without data).
+        find        Locate data that belongs to metainfo files.
+        link        For torrents with missing data in Transmission, find the data and set the location.
+        archive     Copy metainfo files from Transmission for backup.
         organize    Migrate torrents to a new location, sorting them into separate folders for each tracker.
-        prune       Remove torrents from Transmission with completely missing data.
+        prune       Clean up things in different contexts (files, torrents, etc.).
 
     See 'clutchless help <command>' for more information on a specific command.
 
 Examples
 ********
 
-To copy all the ``.torrent`` files in Transmission to ``~/torrent_archive``::
+To copy all the metainfo files (``.torrent``) in Transmission to ``~/torrent_archive``::
 
     clutchless archive ~/torrent_archive
 
 
-To add some torrents to Transmission, searching ``~/torrent_archive`` for ``.torrent`` files and finding data in
+To add some torrents to Transmission, searching ``~/torrent_archive`` for metainfo files and finding data in
 ``~/torrent_data``::
 
     clutchless add ~/torrent_archive -d ~/torrent_data
 
 To look for matching data given a search folder (``~/torrent_data``) and a directory (``~/torrent_files``)
-that contains ``.torrent`` files::
+that contains metainfo files::
 
     clutchless find ~/torrent_files -d ~/torrent_data
 
@@ -86,7 +86,7 @@ Remove torrents that are completely missing data::
 
     clutchless prune client
 
-Remove ``.torrent`` files from some folders (``folder1``, ``folder2``) that are found in Transmission::
+Remove metainfo files from some folders (``folder1``, ``folder2``) that are found in Transmission::
 
     clutchless prune folder ~/folder1 ~/folder2
 
