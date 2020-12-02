@@ -1,5 +1,3 @@
-from clutchless.domain.torrent import MetainfoFile
-
 from clutchless.external.filesystem import DefaultFilesystem
 from clutchless.external.metainfo import (
     DefaultMetainfoReader,

@@ -1,6 +1,9 @@
+import asyncio
+from asyncio import QueueEmpty, Future
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Optional
+from typing import Protocol, Optional, Set, Tuple, Deque, AsyncIterable
 
 from torrentool.torrent import Torrent as ExternalTorrent
 
@@ -40,13 +43,66 @@ class DefaultTorrentDataReader(TorrentDataReader):
 @dataclass(frozen=True)
 class TorrentData:
     metainfo_file: MetainfoFile
-    location: Path
+    location: Optional[Path] = None
 
 
 class TorrentDataLocator(Protocol):
-    def find(self, file: MetainfoFile) -> Optional[TorrentData]:
+    def find(self, file: MetainfoFile) -> TorrentData:
         """Returns parent path that contains file/directory named by metainfo name property."""
         raise NotImplementedError
+
+
+class AsyncTorrentDataLocator:
+    def __init__(self, fs: Filesystem, paths: Set[Path] = None):
+        self.fs = fs
+        if paths is None:
+            paths = set()
+        self.paths = paths
+
+    async def _worker(self, file: MetainfoFile) -> Tuple[TorrentData, Deque[Path]]:
+        queue: Deque[Path] = deque()
+        queue.extend(self.paths)
+        while len(queue) > 0:
+            try:
+                await asyncio.sleep(0)
+            except asyncio.CancelledError:
+                return TorrentData(file), queue
+            try:
+                item = queue.pop()
+            except QueueEmpty:
+                return TorrentData(file), queue
+            needed: Set[Path] = set(file.needed_files(item))
+            children = set(self.fs.children(item))
+            if len(needed) > 0 and file.root(item) in children:
+                is_all_files_exist = all(self.fs.is_file(path) for path in needed)
+                if is_all_files_exist:
+                    return TorrentData(file, item), queue
+            queue.extendleft(children)
+        return TorrentData(file), queue
+
+    @staticmethod
+    async def _cancel(futures: Set[Future]) -> Set[Future]:
+        for p in futures:
+            p.cancel()
+        if len(futures) > 0:
+            cancel_done, _ = await asyncio.wait(futures)
+            return cancel_done
+        else:
+            return set()
+
+    async def find(
+        self, files: Set[MetainfoFile]
+    ) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
+        workers = {self._worker(file) for file in files}
+        done, pending = await asyncio.wait(workers, timeout=5)
+        cancelled = await self._cancel(pending)
+        results: Set[TorrentData] = {
+            future.result()[0] for future in done.union(cancelled)
+        }
+        linked: Set[TorrentData] = {
+            data for data in results if data.location is not None
+        }
+        return linked, {data.metainfo_file for data in results - linked}
 
 
 class DefaultTorrentDataLocator(TorrentDataLocator):

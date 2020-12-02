@@ -1,12 +1,12 @@
-""" Remove metainfo files in folders, but only if they're associated with torrents registered in Transmission.
+""" Remove metainfo files in folders, only if they're associated with torrents registered in Transmission.
 
 Usage:
-    clutchless prune folder [--dry-run] <folders> ...
+    clutchless prune folder [--dry-run] <metainfo> ...
 
 Arguments:
-    <folders> ...   Folders to search for .torrent files to remove.
+    <metainfo> ...  Folders to search for metainfo files to remove.
 
 Options:
-    --dry-run   Doesn't delete any files, only outputs what would be done.
+    --dry-run       Doesn't delete any files, only outputs what would be done.
 
 """

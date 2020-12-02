@@ -30,5 +30,7 @@ CommandFactoryResult = Tuple[Command, Mapping]
 
 
 class CommandFactory(Protocol):
-    def __call__(self, argv: Sequence[str], dependencies: Mapping[str, Any]) -> CommandFactoryResult:
+    def __call__(
+        self, argv: Sequence[str], dependencies: Mapping[str, Any]
+    ) -> CommandFactoryResult:
         raise NotImplementedError

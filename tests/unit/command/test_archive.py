@@ -42,7 +42,9 @@ def test_handle_action_fail(mocker: MockerFixture):
 
     new_output = handle_action(fs, Path("/", "archive"), output, action)
 
-    assert new_output == ArchiveOutput(Path("/", "archive"), copy_failure={1: "test_error"})
+    assert new_output == ArchiveOutput(
+        Path("/", "archive"), copy_failure={1: "test_error"}
+    )
 
 
 def test_archive_success(mocker: MockerFixture):

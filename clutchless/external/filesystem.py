@@ -1,4 +1,5 @@
 import glob
+import os
 from pathlib import Path
 from shutil import copy, SameFileError
 from typing import Protocol, Iterable, Optional, Set, Mapping, Tuple
@@ -54,7 +55,7 @@ class DefaultFilesystem(Filesystem):
         path.mkdir(parents=True, exist_ok=True)
 
     def copy(self, source: Path, destination: Path):
-        if source.exists():
+        if (destination / source.name).exists():
             raise CopyError("destination already exists")
         try:
             copy(source, destination)
@@ -71,8 +72,15 @@ class DefaultFilesystem(Filesystem):
         return path.is_file()
 
     def children(self, path: Path) -> Iterable[Path]:
-        normalized_path = str(path).rstrip("/")
-        return map(Path, glob.iglob(f"{normalized_path}/*"))
+        try:
+            if self.is_directory(path):
+                entries = os.listdir(path)
+                for entry in entries:
+                    full_entry = path / entry
+                    if self.exists(full_entry):
+                        yield full_entry
+        except PermissionError:
+            pass
 
     def remove(self, path: Path):
         path.unlink()
@@ -112,6 +120,7 @@ class DefaultFileLocator(FileLocator):
 
         def filter_wanted_type(pair: Tuple[Path, bool]) -> bool:
             is_dir = pair[1]
+            print(pair[0])
             return xnor(is_dir, want_dir)
 
         wanted_pairs = filter(filter_wanted_type, is_dir_pairs)
@@ -120,7 +129,8 @@ class DefaultFileLocator(FileLocator):
 
     def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:
         normalized_path = str(self.path).rstrip("/")
-        escaped_pathname = f"{glob.escape(normalized_path)}/**/{glob.escape(filename)}"
+        escaped_pathname = f"{glob.escape(normalized_path)}**{glob.escape(filename)}"
+        print(escaped_pathname)
         matches = glob.iglob(escaped_pathname, recursive=True)
         paths = (Path(match) for match in matches)
         is_dir_pairs = ((path, self.fs.is_directory(path)) for path in paths)

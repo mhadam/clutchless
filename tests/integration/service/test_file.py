@@ -3,14 +3,21 @@ from pathlib import Path
 import pytest
 
 from clutchless.external.filesystem import DefaultFilesystem
-from clutchless.service.file import parse_path, validate_files, validate_directories, validate_exists, get_valid_files, \
-    get_valid_directories, get_valid_paths
+from clutchless.service.file import (
+    parse_path,
+    validate_files,
+    validate_directories,
+    validate_exists,
+    get_valid_files,
+    get_valid_directories,
+    get_valid_paths,
+)
 
 
 def test_validate_path_directory(tmp_path):
     fs = DefaultFilesystem()
 
-    path = tmp_path / 'test_file'
+    path = tmp_path / "test_file"
     fs.touch(path)
     paths = {path}
 
@@ -23,7 +30,7 @@ def test_validate_path_directory(tmp_path):
 def test_validate_files(tmp_path):
     fs = DefaultFilesystem()
 
-    path = tmp_path / 'test_directory'
+    path = tmp_path / "test_directory"
     fs.create_dir(path)
     paths = {path}
 
@@ -36,7 +43,7 @@ def test_validate_files(tmp_path):
 def test_validate_exists(tmp_path):
     fs = DefaultFilesystem()
 
-    path = tmp_path / 'test_file'
+    path = tmp_path / "test_file"
 
     with pytest.raises(Exception) as e:
         validate_exists(fs, path)
@@ -59,9 +66,9 @@ def test_path_absolute_differences(tmp_path):
 
 def test_parse_path(tmp_path):
     fs = DefaultFilesystem()
-    fs.touch(tmp_path / 'test_file')
+    fs.touch(tmp_path / "test_file")
 
-    value = str(tmp_path / 'test_file' / '..')
+    value = str(tmp_path / "test_file" / "..")
 
     result = parse_path(fs, value)
 
@@ -70,9 +77,9 @@ def test_parse_path(tmp_path):
 
 def test_get_valid_directories(tmp_path):
     fs = DefaultFilesystem()
-    fs.touch(tmp_path / 'test_file')
+    fs.touch(tmp_path / "test_file")
 
-    values = {str(tmp_path / 'test_file' / '..')}
+    values = {str(tmp_path / "test_file" / "..")}
 
     result = get_valid_directories(fs, values)
 
@@ -81,29 +88,26 @@ def test_get_valid_directories(tmp_path):
 
 def test_get_valid_files(tmp_path):
     fs = DefaultFilesystem()
-    fs.create_dir(tmp_path / 'test_dir')
-    fs.touch(tmp_path / 'test_file')
+    fs.create_dir(tmp_path / "test_dir")
+    fs.touch(tmp_path / "test_file")
 
-    values = {str(tmp_path / 'test_dir' / '..' / 'test_file')}
+    values = {str(tmp_path / "test_dir" / ".." / "test_file")}
 
     result = get_valid_files(fs, values)
 
-    assert str(result.pop()) == str(tmp_path / 'test_file')
+    assert str(result.pop()) == str(tmp_path / "test_file")
 
 
 def test_get_valid_paths(tmp_path):
     fs = DefaultFilesystem()
-    fs.create_dir(tmp_path / 'test_dir')
-    fs.touch(tmp_path / 'test_file')
+    fs.create_dir(tmp_path / "test_dir")
+    fs.touch(tmp_path / "test_file")
 
     values = {
-        str(tmp_path / 'test_dir' / '..' / 'test_file'),
-        str(tmp_path / 'test_dir' / '..' / 'test_dir')
+        str(tmp_path / "test_dir" / ".." / "test_file"),
+        str(tmp_path / "test_dir" / ".." / "test_dir"),
     }
 
     result = get_valid_paths(fs, values)
 
-    assert result == {
-        tmp_path / 'test_dir',
-        tmp_path / 'test_file'
-    }
+    assert result == {tmp_path / "test_dir", tmp_path / "test_file"}

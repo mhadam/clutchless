@@ -1,10 +1,10 @@
 """ Add torrents to Transmission (with or without data).
 
 Usage:
-    clutchless add [--dry-run] [--delete] [-f | --force] <paths> ... [-d <data> ...]
+    clutchless add [--dry-run] [--delete] [-f | --force] <metainfo> ... [-d <data> ...]
 
 Arguments:
-    <paths>  Paths to metainfo files (.torrent) to add to Transmission.
+    <metainfo>      Paths to metainfo files (files or directories) to add to Transmission.
 
 Options:
     -d <data> ...   Data to associate to torrents.

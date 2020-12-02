@@ -1,7 +1,5 @@
 from pathlib import Path
-from typing import Set, Sequence, Iterable
-
-from clutchless.external.filesystem import Filesystem
+from typing import Set, Sequence
 
 
 class PathParser:

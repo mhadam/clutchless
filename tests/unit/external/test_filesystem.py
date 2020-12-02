@@ -70,12 +70,7 @@ def test_default_torrent_reader_verify_single_file(mocker: MockerFixture):
     fs.exists.side_effect = lambda path: path == Path("/root/torrent_name")
 
     path = Path("/root")
-    metainfo_file = MetainfoFile(
-        {
-            "name": "torrent_name",
-            "info": {"length": 5},
-        }
-    )
+    metainfo_file = MetainfoFile({"name": "torrent_name", "info": {"length": 5},})
 
     reader: TorrentDataReader = DefaultTorrentDataReader(fs)
 

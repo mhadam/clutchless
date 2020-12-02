@@ -1,8 +1,11 @@
-""" Copy .torrent files from Transmission for backup.
+""" Copy metainfo files from Transmission for backup.
 
 Usage:
-    clutchless archive <location>
+    clutchless archive [--dry-run] <destination>
 
 Arguments:
-    <location>  Directory where .torrent files in Transmission will be copied.
+    <destination>   Directory where metainfo files in Transmission will be copied.
+
+Options:
+    --dry-run       Do not copy any files, only list which files would be moved.
 """

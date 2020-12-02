@@ -1,4 +1,4 @@
-""" A tool for working with torrents and their data in the Transmission BitTorrent client.
+"""A tool for working with torrents and their data in the Transmission BitTorrent client.
 
 Usage:
     clutchless [options] [-v ...] <command> [<args> ...]
@@ -9,10 +9,10 @@ Options:
     -v, --verbose   Verbose terminal output (multiple -v increase verbosity).
 
 The available clutchless commands are:
-    add         Add torrents to Transmission (with or without data).
-    find        Locate data that belongs to torrent files.
-    link        For torrents with missing data in Transmission, find the data and fix the location.
-    archive     Copy .torrent files from Transmission for backup.
+    add         Add metainfo files to Transmission (with or without data).
+    find        Locate data that belongs to metainfo files.
+    link        For torrents with missing data in Transmission, find the data and set the location.
+    archive     Copy metainfo files from Transmission for backup.
     organize    Migrate torrents to a new location, sorting them into separate folders for each tracker.
     prune       Clean up things in different contexts (files, torrents, etc.).
 
@@ -25,9 +25,7 @@ from typing import Mapping, Any
 
 from docopt import docopt
 
-from clutchless.command.command import (
-    CommandOutput,
-)
+from clutchless.command.command import CommandOutput
 from clutchless.configuration import CommandCreator, command_factories
 from clutchless.external.filesystem import DefaultFilesystem, DefaultFileLocator
 from clutchless.external.metainfo import DefaultMetainfoReader
@@ -43,7 +41,7 @@ class Application:
         logging.basicConfig(level=logging.DEBUG)
         creator = CommandCreator(self.dependencies, command_factories)
         command, subcommand_args = creator.get_command(self.args)
-        is_dry_run = subcommand_args.get('--dry-run')
+        is_dry_run = subcommand_args.get("--dry-run")
         try:
             if is_dry_run is not None and is_dry_run:
                 try:

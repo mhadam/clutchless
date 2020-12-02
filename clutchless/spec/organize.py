@@ -1,17 +1,17 @@
 """ Migrate torrents to a new location, sorting them into separate folders for each tracker.
 
 Usage:
-    clutchless organize [--dry-run] <location> [-t <trackers>] [-d <folder>]
+    clutchless organize [--dry-run] <destination> [-t <trackers>] [-d <folder>]
     clutchless organize --list
 
 Arguments:
-    <location>  Directory where torrents will be sorted into separate folders for each tracker.
+    <destination>   Directory where torrents will be sorted into separate folders for each tracker.
 
 Options:
     --list          Output all trackers with their ID for use in `-t` option.
     -t <trackers>   Specify a folder name for a tracker, takes the format <0=folder;1,3=folder2;...> - use quotes!
     -d <folder>     Specify the default folder name for trackers that aren't specified or found.
-    --dry-run       Prevent any changes in Transmission, only report found data for incomplete torrents.
+    --dry-run       Prevent any changes in Transmission, only report found data for 0% data torrents.
 """
 from collections import UserDict
 from typing import Mapping, Sequence, Set, Iterable

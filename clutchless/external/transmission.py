@@ -148,7 +148,9 @@ class ClutchApi(TransmissionApi):
         if response.result != "success":
             return QueryResult(success=False, error=response.result)
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         result = {}
         for torrent in torrents:
             if torrent.id is not None and torrent.name is not None:
@@ -179,13 +181,11 @@ class ClutchApi(TransmissionApi):
             fields={"id", "percent_done"}
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         return QueryResult(
-            value={
-                torrent.id
-                for torrent in torrents
-                if torrent.percent_done == 0.0
-            }
+            value={torrent.id for torrent in torrents if torrent.percent_done == 0.0}
         )
 
     def get_metainfo_file_path(self, torrent_id: int) -> QueryResult[Path]:
@@ -193,7 +193,9 @@ class ClutchApi(TransmissionApi):
             fields={"torrent_file"}
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         if len(torrents) != 1:
             return QueryResult(error="expected only one result", success=False)
         return QueryResult(value=Path(torrents[0].torrent_file))
@@ -205,7 +207,9 @@ class ClutchApi(TransmissionApi):
             fields={"torrent_file", "percent_done"}
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         return QueryResult(
             value={torrent.id: Path(torrent.torrent_file) for torrent in torrents}
         )
@@ -215,7 +219,9 @@ class ClutchApi(TransmissionApi):
             fields={"torrent_file", "percent_done"}
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         return QueryResult(
             value={
                 Path(torrent.torrent_file)
@@ -229,12 +235,12 @@ class ClutchApi(TransmissionApi):
             fields={"trackers"}
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         return QueryResult(
             value={
-                tracker.announce
-                for torrent in torrents
-                for tracker in torrent.trackers
+                tracker.announce for torrent in torrents for tracker in torrent.trackers
             }
         )
 
@@ -246,12 +252,11 @@ class ClutchApi(TransmissionApi):
             fields={"trackers"}
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         return QueryResult(
-            value={
-                torrent.id: get_announce_urls(torrent)
-                for torrent in torrents
-            }
+            value={torrent.id: get_announce_urls(torrent) for torrent in torrents}
         )
 
     def move_torrent_location(self, torrent_id: int, new_path: Path) -> CommandResult:
@@ -277,7 +282,9 @@ class ClutchApi(TransmissionApi):
         if response.result != "success":
             raise TransmissionError(f"clutch failure: {response.result}")
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         if len(torrents) != 1:
             raise TransmissionError(
                 f"torrent with id {torrent_id} not returned in result"
@@ -292,12 +299,11 @@ class ClutchApi(TransmissionApi):
         if response.result != "success":
             QueryResult(success=False, error=response.result)
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         return QueryResult(
-            value={
-                torrent.id: Path(torrent.torrent_file)
-                for torrent in torrents
-            }
+            value={torrent.id: Path(torrent.torrent_file) for torrent in torrents}
         )
 
     def get_torrent_hashes_by_id(self) -> QueryResult[Mapping[int, str]]:
@@ -307,12 +313,11 @@ class ClutchApi(TransmissionApi):
         if response.result != "success":
             return QueryResult(success=False, error=response.result)
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         return QueryResult(
-            value={
-                torrent.id: torrent.hash_string
-                for torrent in torrents
-            }
+            value={torrent.id: torrent.hash_string for torrent in torrents}
         )
 
     def get_torrent_ids_by_hash(self) -> QueryResult[Mapping[str, int]]:
@@ -322,12 +327,11 @@ class ClutchApi(TransmissionApi):
         if response.result != "success":
             return QueryResult(success=False, error=response.result)
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         return QueryResult(
-            value={
-                torrent.hash_string: torrent.id
-                for torrent in torrents
-            }
+            value={torrent.hash_string: torrent.id for torrent in torrents}
         )
 
     def get_torrent_names_by_id_with_missing_data(
@@ -339,7 +343,9 @@ class ClutchApi(TransmissionApi):
         if response.result != "success":
             return QueryResult(error=response.result, success=False)
         arguments = cast(TorrentAccessorResponse, response.arguments)
-        torrents: Sequence[TorrentAccessorObject] = cast(Sequence[TorrentAccessorObject], arguments.torrents)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
         result: MutableMapping[int, str] = {}
         for torrent in torrents:
             if torrent.error == 3:
@@ -356,7 +362,6 @@ class ClutchApi(TransmissionApi):
 
 
 class DryRunClient(TransmissionApi):
-
     def add_torrent(self, file: Path) -> CommandResult:
         pass
 
@@ -375,7 +380,9 @@ class DryRunClient(TransmissionApi):
     def get_metainfo_file_path(self, torrent_id: int) -> QueryResult[Path]:
         pass
 
-    def get_metainfo_file_paths_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, Path]]:
+    def get_metainfo_file_paths_by_id(
+        self, ids: Set[int]
+    ) -> QueryResult[Mapping[int, Path]]:
         pass
 
     def get_incomplete_torrent_files(self) -> QueryResult[Set[Path]]:
@@ -408,7 +415,9 @@ class DryRunClient(TransmissionApi):
     def get_torrent_ids_by_hash(self) -> QueryResult[Mapping[str, int]]:
         pass
 
-    def get_torrent_names_by_id_with_missing_data(self) -> QueryResult[Mapping[int, str]]:
+    def get_torrent_names_by_id_with_missing_data(
+        self,
+    ) -> QueryResult[Mapping[int, str]]:
         pass
 
     def remove_torrent_keeping_data(self, torrent_id) -> CommandResult:

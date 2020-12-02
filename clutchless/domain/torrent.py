@@ -63,12 +63,18 @@ class MetainfoFile:
                 "must contain either length key or files key, not both or neither"
             )
 
+    def root(self, path: Path) -> Path:
+        """Returns name appended to a path.
+        This would either be a dir/file that contains/is the torrent data.
+        """
+        return path / self.name
+
     def needed_files(self, path: Path) -> Iterable[Path]:
         filepath = path / self.name
         if self.is_single_file:
             yield filepath
         else:
-            yield from [filepath / file.path for file in self.files]
+            yield from (filepath / file.path for file in self.files)
 
     def __str__(self):
         return f"{self.name}"

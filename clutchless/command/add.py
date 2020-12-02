@@ -118,7 +118,9 @@ class LinkingAddOutput(CommandOutput):
 
 
 class AddCommand(Command):
-    def __init__(self, service: AddService, fs: Filesystem, metainfo_files: Set[MetainfoFile]):
+    def __init__(
+        self, service: AddService, fs: Filesystem, metainfo_files: Set[MetainfoFile]
+    ):
         self.service = service
         self.fs = fs
         self.metainfo_files = metainfo_files

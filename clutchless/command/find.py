@@ -43,9 +43,7 @@ class FindOutput(CommandOutput):
 
 class FindCommand(Command):
     def __init__(
-        self,
-        find_service: FindService,
-        metainfo_files: Set[MetainfoFile],
+        self, find_service: FindService, metainfo_files: Set[MetainfoFile],
     ):
         self.find_service = find_service
         self.metainfo_files = metainfo_files

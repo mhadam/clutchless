@@ -1,3 +1,5 @@
+import asyncio
+from asyncio import Queue
 from collections import OrderedDict
 from pathlib import Path
 from typing import (
@@ -7,12 +9,20 @@ from typing import (
     Mapping,
     Tuple,
     Sequence,
-    MutableMapping, Optional, cast,
+    MutableMapping,
+    Optional,
+    cast,
 )
 from urllib.parse import urlparse
 
 from clutchless.domain.torrent import MetainfoFile
-from clutchless.external.metainfo import MetainfoReader, TorrentDataLocator, TorrentData
+from clutchless.external.filesystem import Filesystem
+from clutchless.external.metainfo import (
+    MetainfoReader,
+    TorrentDataLocator,
+    TorrentData,
+    AsyncTorrentDataLocator,
+)
 from clutchless.external.result import QueryResult, CommandResult
 from clutchless.external.transmission import TransmissionApi, DryRunClient
 
@@ -60,29 +70,18 @@ class LinkOnlyAddService(AddService):
 
 
 class FindService:
-    def __init__(self, data_locator: TorrentDataLocator):
+    def __init__(self, data_locator: AsyncTorrentDataLocator):
         self.data_locator = data_locator
 
     def find(
-            self, metainfo_files: Set[MetainfoFile]
+        self, files: Set[MetainfoFile]
     ) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
-        def generate() -> Iterable[TorrentData]:
-            for file in metainfo_files:
-                data = self.data_locator.find(file)
-                if data:
-                    yield data
-
-        found_metainfos = set(generate())
-        found_metainfo_files: Set[MetainfoFile] = {
-            data.metainfo_file for data in found_metainfos
-        }
-        rest: Set[MetainfoFile] = metainfo_files - found_metainfo_files
-        return found_metainfos, rest
+        return asyncio.run(self.data_locator.find(files))
 
 
 class ExcludingFindService(FindService):
     def find(
-            self, metainfo_files: Set[MetainfoFile]
+        self, metainfo_files: Set[MetainfoFile]
     ) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
         found, rest = super(ExcludingFindService, self).find(metainfo_files)
         return found, set()
@@ -99,7 +98,7 @@ class LinkDataService:
         raise RuntimeError("failed incomplete_ids query")
 
     def __query_metainfo_file_by_id(
-            self, incomplete_ids: Set[int]
+        self, incomplete_ids: Set[int]
     ) -> Mapping[int, Path]:
         query_result: QueryResult[
             Mapping[int, Path]
@@ -208,16 +207,16 @@ class OrganizeService:
 
     @staticmethod
     def _sort_url_sets(
-            groups_by_name: Mapping[str, Set[str]]
+        groups_by_name: Mapping[str, Set[str]]
     ) -> "OrderedDict[str, Sequence[str]]":
-        result: 'OrderedDict[str, Sequence[str]]' = OrderedDict()
+        result: "OrderedDict[str, Sequence[str]]" = OrderedDict()
         for (name, urls) in groups_by_name.items():
             result[name] = sorted(urls)
         return result
 
     @staticmethod
     def _sort_groups_by_name(
-            groups: Mapping[str, Set[str]]
+        groups: Mapping[str, Set[str]]
     ) -> "OrderedDict[str, Set[str]]":
         return OrderedDict(sorted(groups.items()))
 
@@ -244,13 +243,13 @@ class OrganizeService:
 
     @staticmethod
     def _get_folder_name_by_url(
-            announce_urls_by_folder_name: "OrderedDict[str, Sequence[str]]",
-            overrides: Mapping[int, str],
+        announce_urls_by_folder_name: "OrderedDict[str, Sequence[str]]",
+        overrides: Mapping[int, str],
     ) -> Mapping[str, str]:
         """Returns map: folder name by url"""
         result: MutableMapping[str, str] = {}
         for (index, (folder_name, urls)) in enumerate(
-                announce_urls_by_folder_name.items()
+            announce_urls_by_folder_name.items()
         ):
             for url in urls:
                 try:

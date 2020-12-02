@@ -23,9 +23,7 @@ def test_add_run_success(mocker: MockerFixture):
     fs = mocker.Mock(spec=Filesystem)
     metainfo_paths = {Path("/", "test_path", str(n)) for n in range(10)}
     metainfo_files = {
-        MetainfoFile({
-            "info_hash": path
-        }, path) for path in metainfo_paths
+        MetainfoFile({"info_hash": path}, path) for path in metainfo_paths
     }
     command = AddCommand(service, fs, metainfo_files)
 
@@ -45,10 +43,7 @@ def test_add_run_duplicate(mocker: MockerFixture):
     service = AddService(api)
     fs = mocker.Mock(spec=Filesystem)
     metainfo_path = Path("/", "test_path")
-    metainfo_file = MetainfoFile(
-        {"info_hash": "arbitrary"},
-        metainfo_path
-    )
+    metainfo_file = MetainfoFile({"info_hash": "arbitrary"}, metainfo_path)
 
     command = AddCommand(service, fs, {metainfo_file})
 
@@ -64,10 +59,7 @@ def test_add_run_unknown(mocker: MockerFixture):
     service = AddService(api)
     fs = mocker.Mock(spec=Filesystem)
     metainfo_path = Path("/", "test_path")
-    metainfo_file = MetainfoFile(
-        {"info_hash": "arbitrary"},
-        metainfo_path
-    )
+    metainfo_file = MetainfoFile({"info_hash": "arbitrary"}, metainfo_path)
     command = AddCommand(service, fs, {metainfo_file})
 
     output: AddOutput = command.run()
