@@ -24,20 +24,13 @@ from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import (
     Filesystem,
     FileLocator,
-    MultipleDirectoryFileLocator,
-    DefaultFileLocator,
     DryRunFilesystem,
 )
 from clutchless.external.metainfo import (
-    TorrentDataLocator,
-    CustomTorrentDataLocator,
-    DefaultTorrentDataReader,
     MetainfoReader,
     AsyncTorrentDataLocator,
 )
 from clutchless.service.file import (
-    collect_metainfo_files,
-    collect_metainfo_paths,
     get_valid_directories,
     get_valid_paths,
 )
@@ -228,7 +221,9 @@ command_factories: DefaultDict[Any, CommandFactory] = defaultdict(
 
 class CommandCreator:
     def __init__(
-        self, dependencies: Mapping[str, Any], factories: Mapping[str, CommandFactory],
+        self,
+        dependencies: Mapping[str, Any],
+        factories: Mapping[str, CommandFactory],
     ):
         self.dependencies = dependencies
         self.factories = factories

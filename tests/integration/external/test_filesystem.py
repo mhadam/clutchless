@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from clutchless.external.filesystem import (
     DefaultFilesystem,
     FileLocator,
@@ -37,23 +39,25 @@ def test_default_filesystem_children(tmp_path):
     assert set(children) == expected_children
 
 
-def test_default_locator_find_file(tmp_path):
+@pytest.mark.asyncio
+async def test_default_locator_find_file(tmp_path):
     file = tmp_path / "test_file"
     file.touch()
     fs = DefaultFilesystem()
     locator: FileLocator = DefaultFileLocator(fs, tmp_path)
 
-    result = locator.locate("test_file")
+    result = await locator.locate_file("test_file")
 
     assert result == tmp_path
 
 
-def test_default_filesystem_find_directory(tmp_path):
+@pytest.mark.asyncio
+async def test_default_filesystem_find_directory(tmp_path):
     file = tmp_path / "test_dir"
     file.mkdir(parents=True)
     fs = DefaultFilesystem()
     locator: FileLocator = DefaultFileLocator(fs, tmp_path)
 
-    result = locator.locate("test_dir", True)
+    result = await locator.locate_directory("test_dir")
 
     assert result == tmp_path

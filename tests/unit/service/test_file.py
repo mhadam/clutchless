@@ -1,61 +1,74 @@
-from collections import defaultdict
+import asyncio
 from pathlib import Path
 
-from pytest_mock import MockerFixture
+import pytest
 
-from clutchless.domain.torrent import MetainfoFile
-from clutchless.external.filesystem import Filesystem, FileLocator
-from clutchless.external.metainfo import MetainfoReader
-from clutchless.service.file import collect_metainfo_files, collect_metainfo_paths
+from clutchless.external.filesystem import DefaultFileLocator
+from clutchless.service.file import (
+    collect_metainfo_paths,
+    collect_metainfo_files_with_timeout,
+)
+from tests.mock_fs import MockFilesystem, InfinitelyDeepFilesystem
 
 
-def test_collect_metainfo_files(mocker: MockerFixture):
+@pytest.mark.asyncio
+async def test_collect_metainfo_files():
     raw_paths = {
         Path("/some_path"),
         Path("/another_path/file.torrent"),
     }
 
-    files = {
-        Path("/another_path/file.torrent"),
-        Path("/some_path/child1/file2.torrent"),
-        Path("/some_path/child1/file3"),
-    }
-
-    directories = {
-        Path("/another_path"),
-        Path("/some_path/child1"),
-        Path("/some_path"),
-    }
-
-    children = defaultdict(
-        set,
+    filesystem = MockFilesystem(
         {
-            Path("/some_path"): {Path("/some_path/child1")},
-            Path("/some_path/child1"): {
-                Path("/some_path/child1/file2.torrent"),
-                Path("/some_path/child1/file3"),
-            },
-        },
+            "some_path": {"child1": {"file2.torrent", "file3"}},
+            "another_path": {"file.torrent"},
+        }
     )
 
-    filesystem = mocker.Mock(spec=Filesystem)
-    filesystem.exists.side_effect = lambda path: path in files or path in directories
-    filesystem.is_file.side_effect = lambda path: path in files
-    filesystem.is_directory.side_effect = lambda path: path in directories
-    filesystem.children.side_effect = lambda path: children.get(path)
+    results = set()
+    async for path in collect_metainfo_paths(filesystem, raw_paths):
+        results.add(path)
 
-    locator = mocker.Mock(spec=FileLocator)
-    locator.collect.return_value = {Path("/some_path/child1/file2.torrent")}
-
-    reader = mocker.Mock(spec=MetainfoReader)
-    reader.from_path.side_effect = lambda path: MetainfoFile({"info_hash": path})
-
-    result_files = collect_metainfo_files(filesystem, locator, raw_paths, reader)
-    result_paths = collect_metainfo_paths(filesystem, locator, raw_paths)
-
-    assert set(result_paths) == {
+    assert set(results) == {
         Path("/another_path/file.torrent"),
         Path("/some_path/child1/file2.torrent"),
     }
 
-    assert len(result_files) == 2
+
+def test_collect_with_timeout():
+    fs = MockFilesystem(
+        {
+            "some_path": {"child1": {"file2.torrent", "file3"}},
+            "another_path": {"file.torrent"},
+        }
+    )
+
+    locator = DefaultFileLocator(fs)
+
+    results = asyncio.run(collect_metainfo_files_with_timeout([locator], 1))
+
+    assert set(results) == {
+        Path("/another_path/file.torrent"),
+        Path("/some_path/child1/file2.torrent"),
+    }
+
+
+def test_collect_with_timeout_cancel():
+    fs = MockFilesystem(
+        {
+            "some_path": {"child1": {"file2.torrent", "file3"}},
+            "another_path": {"file.torrent"},
+        }
+    )
+
+    locator = DefaultFileLocator(fs)
+    forever_locator = DefaultFileLocator(InfinitelyDeepFilesystem())
+
+    results = asyncio.run(
+        collect_metainfo_files_with_timeout([locator, forever_locator], 1)
+    )
+
+    assert set(results) == {
+        Path("/another_path/file.torrent"),
+        Path("/some_path/child1/file2.torrent"),
+    }

@@ -43,13 +43,17 @@ class FindOutput(CommandOutput):
 
 class FindCommand(Command):
     def __init__(
-        self, find_service: FindService, metainfo_files: Set[MetainfoFile],
+        self,
+        find_service: FindService,
+        metainfo_files: Set[MetainfoFile],
     ):
         self.find_service = find_service
         self.metainfo_files = metainfo_files
 
     def run(self) -> FindOutput:
-        found, rest = self.find_service.find(self.metainfo_files)
+        results = self.find_service.find(self.metainfo_files)
+        found = {result for result in results if result.location is not None}
+        rest = {result.metainfo_file for result in results if result.location is None}
         output = FindOutput(found, rest)
         return output
 

@@ -1,9 +1,9 @@
 import asyncio
-from asyncio import QueueEmpty, Future
+from asyncio import QueueEmpty, Future, FIRST_COMPLETED
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Optional, Set, Tuple, Deque, AsyncIterable
+from typing import Protocol, Optional, Set, Tuple, Deque, AsyncIterable, Iterable
 
 from torrentool.torrent import Torrent as ExternalTorrent
 
@@ -47,82 +47,54 @@ class TorrentData:
 
 
 class TorrentDataLocator(Protocol):
-    def find(self, file: MetainfoFile) -> TorrentData:
+    async def find(self, file: MetainfoFile) -> TorrentData:
         """Returns parent path that contains file/directory named by metainfo name property."""
         raise NotImplementedError
 
-
-class AsyncTorrentDataLocator:
-    def __init__(self, fs: Filesystem, paths: Set[Path] = None):
-        self.fs = fs
-        if paths is None:
-            paths = set()
-        self.paths = paths
-
-    async def _worker(self, file: MetainfoFile) -> Tuple[TorrentData, Deque[Path]]:
-        queue: Deque[Path] = deque()
-        queue.extend(self.paths)
-        while len(queue) > 0:
-            try:
-                await asyncio.sleep(0)
-            except asyncio.CancelledError:
-                return TorrentData(file), queue
-            try:
-                item = queue.pop()
-            except QueueEmpty:
-                return TorrentData(file), queue
-            needed: Set[Path] = set(file.needed_files(item))
-            children = set(self.fs.children(item))
-            if len(needed) > 0 and file.root(item) in children:
-                is_all_files_exist = all(self.fs.is_file(path) for path in needed)
-                if is_all_files_exist:
-                    return TorrentData(file, item), queue
-            queue.extendleft(children)
-        return TorrentData(file), queue
-
-    @staticmethod
-    async def _cancel(futures: Set[Future]) -> Set[Future]:
-        for p in futures:
-            p.cancel()
-        if len(futures) > 0:
-            cancel_done, _ = await asyncio.wait(futures)
-            return cancel_done
-        else:
-            return set()
-
-    async def find(
-        self, files: Set[MetainfoFile]
-    ) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
-        workers = {self._worker(file) for file in files}
-        done, pending = await asyncio.wait(workers, timeout=5)
-        cancelled = await self._cancel(pending)
-        results: Set[TorrentData] = {
-            future.result()[0] for future in done.union(cancelled)
-        }
-        linked: Set[TorrentData] = {
-            data for data in results if data.location is not None
-        }
-        return linked, {data.metainfo_file for data in results - linked}
-
-
-class DefaultTorrentDataLocator(TorrentDataLocator):
-    def __init__(self, fs: Filesystem, path: Path = None):
-        file_locator = DefaultFileLocator(fs, path)
-        data_reader = DefaultTorrentDataReader(fs)
-        self.custom_locator = CustomTorrentDataLocator(file_locator, data_reader)
-
-    def find(self, file: MetainfoFile) -> Optional[TorrentData]:
-        return self.custom_locator.find(file)
+    async def find_many(
+        self, files: Iterable[MetainfoFile]
+    ) -> AsyncIterable[TorrentData]:
+        raise NotImplementedError
 
 
 class CustomTorrentDataLocator(TorrentDataLocator):
-    def __init__(self, file_locator: FileLocator, data_reader: TorrentDataReader):
-        self.file_locator = file_locator
-        self.data_reader = data_reader
+    def __init__(self, locator: FileLocator, reader: TorrentDataReader):
+        self.locator = locator
+        self.reader = reader
 
-    def find(self, file: MetainfoFile) -> Optional[TorrentData]:
-        found = self.file_locator.locate(file.name, file.is_multifile)
+    async def find_many(
+        self, files: Iterable[MetainfoFile]
+    ) -> AsyncIterable[TorrentData]:
+        coroutines = {self.find(file) for file in files}
+        while len(coroutines) > 0:
+            done, pending = await asyncio.wait(coroutines, return_when=FIRST_COMPLETED)
+            for d in done:
+                yield d.result()
+            coroutines = pending
+
+    async def find(self, file: MetainfoFile) -> TorrentData:
+        if file.is_multifile:
+            found = await self.locator.locate_directory(file.name)
+        else:
+            found = await self.locator.locate_file(file.name)
         if found is not None:
-            if self.data_reader.verify(found, file):
+            if self.reader.verify(found, file):
                 return TorrentData(file, found)
-        return None
+        return TorrentData(file)
+
+
+class DefaultTorrentDataLocator(CustomTorrentDataLocator):
+    def __init__(self, fs: Filesystem, path: Path = None):
+        self.path = path
+        reader = DefaultTorrentDataReader(fs)
+        locator = DefaultFileLocator(fs, path)
+        super().__init__(locator, reader)
+
+    async def find(self, file: MetainfoFile) -> TorrentData:
+        return await super().find(file)
+
+    async def find_many(
+        self, files: Iterable[MetainfoFile]
+    ) -> AsyncIterable[TorrentData]:
+        async for result in super().find_many(files):
+            yield result

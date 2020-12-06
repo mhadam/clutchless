@@ -1,19 +1,22 @@
+import pytest
+
 from clutchless.external.filesystem import DefaultFilesystem
 from clutchless.external.metainfo import (
     DefaultMetainfoReader,
     MetainfoReader,
-    AsyncTorrentDataLocator,
+    DefaultTorrentDataLocator,
+    TorrentData,
 )
 
 
-def test_async_data_locator_multi_file(datadir):
-    metainfo_reader: MetainfoReader = DefaultMetainfoReader()
-    metainfo_path = datadir / "being_earnest.torrent"
-    metainfo_file = metainfo_reader.from_path(metainfo_path)
+@pytest.mark.asyncio
+async def test_async_data_locator_multi_file(datadir):
+    reader: MetainfoReader = DefaultMetainfoReader()
+    path = datadir / "being_earnest.torrent"
+    file = reader.from_path(path)
 
     fs = DefaultFilesystem()
-    locator = AsyncTorrentDataLocator(fs, {datadir})
-    result = locator.find({metainfo_file})
+    locator = DefaultTorrentDataLocator(fs, datadir)
+    result = await locator.find(file)
 
-    assert len(result) == 1
-    assert result.pop().location == datadir
+    assert result == TorrentData(file, datadir)

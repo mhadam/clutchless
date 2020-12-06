@@ -4,13 +4,14 @@ from pytest_mock import MockerFixture
 
 from clutchless.command.find import FindCommand
 from clutchless.domain.torrent import MetainfoFile
-from clutchless.external.filesystem import Filesystem
 from clutchless.external.metainfo import (
     TorrentData,
     TorrentDataLocator,
     MetainfoReader,
+    DefaultTorrentDataLocator,
 )
 from clutchless.service.torrent import FindService
+from tests.mock_fs import MockFilesystem
 
 
 def test_find_found(mocker: MockerFixture):
@@ -19,15 +20,20 @@ def test_find_found(mocker: MockerFixture):
     properties = {
         "info_hash": "meaningless and necessary",
         "name": "test_name",
-        "info": {"length": 0},
+        "info": {
+            "files": [
+                {"path": ["file1"], "length": 0},
+                {"path": ["file2"], "length": 0},
+            ]
+        },
     }
     metainfo_file = MetainfoFile(properties, metainfo_path)
-    fs = mocker.Mock(spec=Filesystem)
     reader = mocker.Mock(spec=MetainfoReader)
     reader.from_path.return_value = metainfo_file
 
-    locator = mocker.Mock(spec=TorrentDataLocator)
-    locator.find.return_value = TorrentData(metainfo_file, Path("/", "data"))
+    fs = MockFilesystem({"data": {"test_name": {"file1", "file2"}}})
+
+    locator = DefaultTorrentDataLocator(fs)
     find_service = FindService(locator)
 
     command = FindCommand(find_service, {metainfo_file})
@@ -41,14 +47,20 @@ def test_find_missing(mocker: MockerFixture):
     properties = {
         "info_hash": "meaningless and necessary",
         "name": "test_name",
-        "info": {"length": 0},
+        "info": {
+            "files": [
+                {"path": ["file1"], "length": 0},
+                {"path": ["file2"], "length": 0},
+            ]
+        },
     }
     metainfo_file = MetainfoFile(properties, metainfo_path)
     reader = mocker.Mock(spec=MetainfoReader)
     reader.from_path.return_value = metainfo_file
 
-    locator = mocker.Mock(spec=TorrentDataLocator)
-    locator.find.return_value = None
+    fs = MockFilesystem({"data"})
+
+    locator = DefaultTorrentDataLocator(fs)
     find_service = FindService(locator)
 
     command = FindCommand(find_service, {metainfo_file})

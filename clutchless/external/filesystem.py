@@ -1,8 +1,18 @@
-import glob
+import asyncio
 import os
+from collections import deque
 from pathlib import Path
 from shutil import copy, SameFileError
-from typing import Protocol, Iterable, Optional, Set, Mapping, Tuple
+from typing import (
+    Protocol,
+    Iterable,
+    Optional,
+    Set,
+    Mapping,
+    Tuple,
+    Deque,
+    AsyncIterable,
+)
 
 
 class Filesystem(Protocol):
@@ -95,21 +105,31 @@ class DryRunFilesystem(DefaultFilesystem):
 
 
 class FileLocator(Protocol):
-    def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:
-        """When successful, returns parent path that holds 'filename'."""
+    def roots(self) -> Iterable[Path]:
         raise NotImplementedError
 
-    def collect(self, extension: str) -> Iterable[Path]:
+    async def locate_file(self, name: str) -> Optional[Path]:
+        raise NotImplementedError
+
+    async def locate_directory(self, name: str) -> Optional[Path]:
+        """When successful, returns parent path that holds directory 'name'."""
+        raise NotImplementedError
+
+    async def collect(self, extension: str) -> AsyncIterable[Path]:
         raise NotImplementedError
 
 
 class DefaultFileLocator(FileLocator):
     def __init__(self, fs: Filesystem, path: Path = None):
         self.fs = fs
-        if path is not None:
-            self.path = path
-        else:
-            self.path = fs.root()
+        if path is None:
+            path = fs.root()
+        if fs.is_file(path):
+            raise ValueError(f"path {path} must be a directory")
+        self.path = path
+
+    def roots(self) -> Iterable[Path]:
+        yield self.path
 
     @staticmethod
     def _get_parent_of_wanted_matches(
@@ -127,23 +147,54 @@ class DefaultFileLocator(FileLocator):
         parents_of_wanted_paths = map(lambda pair: Path(pair[0]).parent, wanted_pairs)
         return next(parents_of_wanted_paths, None)
 
-    def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:
-        normalized_path = str(self.path).rstrip("/")
-        escaped_pathname = f"{glob.escape(normalized_path)}**{glob.escape(filename)}"
-        print(escaped_pathname)
-        matches = glob.iglob(escaped_pathname, recursive=True)
-        paths = (Path(match) for match in matches)
-        is_dir_pairs = ((path, self.fs.is_directory(path)) for path in paths)
-        return self._get_parent_of_wanted_matches(is_dir_pairs, is_dir)
+    async def locate_directory(self, name: str) -> Optional[Path]:
+        queue: Deque[Path] = deque()
+        queue.append(self.path)
+        while len(queue) > 0:
+            try:
+                await asyncio.sleep(0)
+            except asyncio.CancelledError:
+                return None
+            item = queue.pop()
+            child_directories = (
+                child for child in self.fs.children(item) if self.fs.is_directory(child)
+            )
+            for directory_path in child_directories:
+                if directory_path.name == name:
+                    return item
+                queue.appendleft(directory_path)
+        return None
 
-    def collect(self, extension: str) -> Iterable[Path]:
-        if self.fs.is_file(self.path):
-            raise ValueError(f"{self.path} is not a directory")
-        normalized_path = str(self.path).rstrip("/")
-        escaped_pathname = (
-            f"{glob.escape(normalized_path)}/**/*{glob.escape(extension)}"
-        )
-        return map(Path, glob.iglob(escaped_pathname, recursive=True))
+    async def locate_file(self, name: str) -> Optional[Path]:
+        queue: Deque[Path] = deque()
+        queue.append(self.path)
+        while len(queue) > 0:
+            try:
+                await asyncio.sleep(0)
+            except asyncio.CancelledError:
+                return None
+            item = queue.pop()
+            for child_path in self.fs.children(item):
+                if self.fs.is_file(child_path) and child_path.name == name:
+                    return item
+                elif self.fs.is_directory(child_path):
+                    queue.appendleft(child_path)
+        return None
+
+    async def collect(self, extension: str) -> AsyncIterable[Path]:
+        queue: Deque[Path] = deque()
+        queue.append(self.path)
+        while len(queue) > 0:
+            try:
+                await asyncio.sleep(0)
+            except asyncio.CancelledError:
+                return
+            item = queue.pop()
+            for child_path in self.fs.children(item):
+                if self.fs.is_file(child_path) and child_path.suffix == extension:
+                    yield child_path
+                elif self.fs.is_directory(child_path):
+                    queue.appendleft(child_path)
 
 
 class MultipleDirectoryFileLocator(FileLocator):
@@ -154,13 +205,24 @@ class MultipleDirectoryFileLocator(FileLocator):
             directory: DefaultFileLocator(fs, directory) for directory in directories
         }
 
-    def locate(self, filename: str, is_dir: bool = False) -> Optional[Path]:
+    def roots(self) -> Iterable[Path]:
+        return (path for path in self.locators.keys())
+
+    async def locate_file(self, name: str) -> Optional[Path]:
         for _, locator in self.locators.items():
-            result = locator.locate(filename, is_dir)
+            result = await locator.locate_file(name)
             if result is not None:
                 return result
         return None
 
-    def collect(self, extension: str) -> Iterable[Path]:
+    async def locate_directory(self, name: str) -> Optional[Path]:
         for _, locator in self.locators.items():
-            yield from locator.collect(extension)
+            result = await locator.locate_directory(name)
+            if result is not None:
+                return result
+        return None
+
+    async def collect(self, extension: str) -> AsyncIterable[Path]:
+        for _, locator in self.locators.items():
+            async for item in locator.collect(extension):
+                yield item

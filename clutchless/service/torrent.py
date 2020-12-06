@@ -1,9 +1,7 @@
 import asyncio
-from asyncio import Queue
 from collections import OrderedDict
 from pathlib import Path
 from typing import (
-    Iterable,
     Set,
     MutableSequence,
     Mapping,
@@ -12,19 +10,18 @@ from typing import (
     MutableMapping,
     Optional,
     cast,
+    Iterable,
 )
 from urllib.parse import urlparse
 
 from clutchless.domain.torrent import MetainfoFile
-from clutchless.external.filesystem import Filesystem
 from clutchless.external.metainfo import (
     MetainfoReader,
-    TorrentDataLocator,
     TorrentData,
-    AsyncTorrentDataLocator,
+    TorrentDataLocator,
 )
 from clutchless.external.result import QueryResult, CommandResult
-from clutchless.external.transmission import TransmissionApi, DryRunClient
+from clutchless.external.transmission import TransmissionApi
 
 
 class AddService:
@@ -70,13 +67,17 @@ class LinkOnlyAddService(AddService):
 
 
 class FindService:
-    def __init__(self, data_locator: AsyncTorrentDataLocator):
+    def __init__(self, data_locator: TorrentDataLocator):
         self.data_locator = data_locator
 
-    def find(
-        self, files: Set[MetainfoFile]
-    ) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
-        return asyncio.run(self.data_locator.find(files))
+    def find(self, files: Set[MetainfoFile]) -> Iterable[TorrentData]:
+        async def _callback():
+            results = set()
+            async for result in self.data_locator.find_many(files):
+                results.add(result)
+            return results
+
+        return asyncio.run(_callback())
 
 
 class ExcludingFindService(FindService):

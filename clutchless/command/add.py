@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import MutableMapping, MutableSequence, Set, Sequence
+from typing import MutableMapping, MutableSequence, Set, Sequence, Iterable
 
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
+from clutchless.external.metainfo import TorrentData
 from clutchless.service.torrent import AddService, FindService
 
 
@@ -174,14 +175,13 @@ class LinkingAddCommand(Command):
         return output
 
     def run(self) -> LinkingAddOutput:
-        linked, rest = self.find_service.find(self.metainfo_files)
-        for linked_file in linked:
-            metainfo_file = linked_file.metainfo_file
-            if metainfo_file.path is not None:
-                self.add_service.add_with_data(metainfo_file, linked_file.location)
-        for rest_file in rest:
-            if rest_file.path is not None:
-                self.add_service.add(rest_file)
+        results: Iterable[TorrentData] = self.find_service.find(self.metainfo_files)
+        for result in results:
+            file, location = result.metainfo_file, result.location
+            if location is not None and file.path is not None:
+                self.add_service.add_with_data(file, location)
+            else:
+                self.add_service.add(file)
         for success in self.add_service.success:
             if success.path:
                 self.fs.remove(success.path)
