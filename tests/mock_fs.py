@@ -5,22 +5,6 @@ from typing import Mapping, Iterable, Deque, Set, Tuple
 from clutchless.external.filesystem import Filesystem
 
 
-def _handle_mapping(item, directories, files, path, queue):
-    for (child_name, child_value) in item.items():
-        directories.add(Path(path, child_name))
-        if isinstance(child_value, str):
-            child_path = Path(path, child_value)
-            if child_value.endswith("/"):
-                directories.add(child_path)
-            else:
-                files.add(child_path)
-        if isinstance(child_value, Iterable):
-            if path == "/":
-                queue.appendleft(("/" + child_name, child_value))
-            else:
-                queue.appendleft((path + "/" + child_name, child_value))
-
-
 def _get_paths(spec: Iterable) -> Tuple[Set[Path], Set[Path]]:
     queue: Deque = deque()
     queue.append(("/", spec))
@@ -29,7 +13,12 @@ def _get_paths(spec: Iterable) -> Tuple[Set[Path], Set[Path]]:
     while len(queue) > 0:
         path, item = queue.pop()
         if isinstance(item, Mapping):
-            _handle_mapping(item, directories, files, path, queue)
+            for (child_name, child_value) in item.items():
+                directories.add(Path(path, child_name))
+                if path == "/":
+                    queue.appendleft(("/" + child_name, child_value))
+                else:
+                    queue.appendleft((path + "/" + child_name, child_value))
         elif isinstance(item, str):
             if item.endswith("/"):
                 directories.add(Path(path, item))
@@ -37,13 +26,7 @@ def _get_paths(spec: Iterable) -> Tuple[Set[Path], Set[Path]]:
                 files.add(Path(path, item))
         elif isinstance(item, Iterable):
             for value in item:
-                if isinstance(value, str):
-                    if value.endswith("/"):
-                        directories.add(Path(path, value))
-                    else:
-                        files.add(Path(path, value))
-                if isinstance(value, Mapping):
-                    _handle_mapping(value, directories, files, path, queue)
+                queue.appendleft((path, value))
     return files, directories
 
 
