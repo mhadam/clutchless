@@ -2,12 +2,15 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from pytest_mock import MockerFixture
 
+from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import SingleDirectoryFileLocator
+from clutchless.external.metainfo import MetainfoReader
 from clutchless.service.file import (
     collect_metainfo_paths,
     collect_metainfo_paths_with_timeout,
-    collect_from_aggregate,
+    collect_from_aggregate, collect_metainfo_files_with_timeout,
 )
 from tests.mock_fs import MockFilesystem, InfinitelyDeepFilesystem
 
@@ -102,4 +105,34 @@ def test_collect_metainfo_paths_with_timeout():
     assert set(result) == {
         Path("/another_path/file.torrent"),
         Path("/some_path/child1/file2.torrent"),
+    }
+
+
+def test_collect_metainfo_files_with_timeout(mocker: MockerFixture):
+    fs = MockFilesystem(
+        {
+            "some_path": {"child1": {"file2.torrent", "file3"}},
+            "another_path": {"file.torrent"},
+        }
+    )
+
+    paths = {Path("/")}
+    reader = mocker.Mock(spec=MetainfoReader)
+
+    def from_path(path: Path):
+        return MetainfoFile(
+            {
+                'info_hash': str(path)
+            }
+        )
+
+    reader.from_path.side_effect = from_path
+
+    coro = collect_metainfo_files_with_timeout(fs, reader, paths, 0.001)
+
+    result = set(asyncio.run(coro))
+
+    assert result == {
+        from_path(Path("/some_path/child1/file2.torrent")),
+        from_path(Path("/another_path/file.torrent"))
     }
