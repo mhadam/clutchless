@@ -9,7 +9,7 @@ Arguments:
 Options:
     -d <data> ...   Folder(s) to search for data that belongs to the specified metainfo files.
 """
-
+import asyncio
 from pathlib import Path
 from typing import Mapping, Set
 
@@ -19,6 +19,7 @@ from clutchless.external.metainfo import MetainfoReader
 from clutchless.service.file import (
     get_valid_directories,
     collect_metainfo_files_with_timeout,
+    collect_metainfo_paths_with_timeout,
 )
 
 
@@ -42,11 +43,11 @@ class FindArgs:
     def get_torrent_files_paths(self) -> Set[Path]:
         raw_torrents_paths = set(self.args["<metainfo>"])
         paths = {Path(path) for path in raw_torrents_paths}
-        return collect_metainfo_paths_with_timeout(self.fs, paths)
+        coro = collect_metainfo_paths_with_timeout(self.fs, paths, 2)
+        return set(asyncio.run(coro))
 
     def get_torrent_files(self) -> Set[MetainfoFile]:
         raw_torrents_paths = set(self.args["<metainfo>"])
         paths = {Path(path) for path in raw_torrents_paths}
-        return collect_metainfo_files_with_timeout(
-            self.reader,
-        )
+        coro = collect_metainfo_files_with_timeout(self.fs, self.reader, paths, 2)
+        return set(asyncio.run(coro))

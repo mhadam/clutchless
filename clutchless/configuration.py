@@ -35,7 +35,9 @@ from clutchless.external.metainfo import (
 )
 from clutchless.service.file import (
     get_valid_directories,
-    get_valid_paths, collect_metainfo_paths_with_timeout, collect_metainfo_files_with_timeout,
+    get_valid_paths,
+    collect_metainfo_paths_with_timeout,
+    collect_metainfo_files_with_timeout,
 )
 from clutchless.service.torrent import (
     AddService,

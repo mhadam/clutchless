@@ -10,7 +10,8 @@ from clutchless.external.metainfo import MetainfoReader
 from clutchless.service.file import (
     collect_metainfo_paths,
     collect_metainfo_paths_with_timeout,
-    collect_from_aggregate, collect_metainfo_files_with_timeout,
+    collect_from_aggregate,
+    collect_metainfo_files_with_timeout,
 )
 from tests.mock_fs import MockFilesystem, InfinitelyDeepFilesystem
 
@@ -120,11 +121,7 @@ def test_collect_metainfo_files_with_timeout(mocker: MockerFixture):
     reader = mocker.Mock(spec=MetainfoReader)
 
     def from_path(path: Path):
-        return MetainfoFile(
-            {
-                'info_hash': str(path)
-            }
-        )
+        return MetainfoFile({"info_hash": str(path)})
 
     reader.from_path.side_effect = from_path
 
@@ -134,5 +131,5 @@ def test_collect_metainfo_files_with_timeout(mocker: MockerFixture):
 
     assert result == {
         from_path(Path("/some_path/child1/file2.torrent")),
-        from_path(Path("/another_path/file.torrent"))
+        from_path(Path("/another_path/file.torrent")),
     }
