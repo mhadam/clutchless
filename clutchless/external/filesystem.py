@@ -1,18 +1,21 @@
 import asyncio
 import os
+from asyncio import Task
 from collections import deque
+from itertools import chain
 from pathlib import Path
 from shutil import copy, SameFileError
 from typing import (
     Protocol,
     Iterable,
     Optional,
-    Set,
     Mapping,
     Tuple,
     Deque,
     AsyncIterable,
 )
+
+from clutchless.stream import combine
 
 
 class Filesystem(Protocol):
@@ -119,7 +122,7 @@ class FileLocator(Protocol):
         raise NotImplementedError
 
 
-class DefaultFileLocator(FileLocator):
+class SingleDirectoryFileLocator(FileLocator):
     def __init__(self, fs: Filesystem, path: Path = None):
         self.fs = fs
         if path is None:
@@ -197,32 +200,52 @@ class DefaultFileLocator(FileLocator):
                     queue.appendleft(child_path)
 
 
-class MultipleDirectoryFileLocator(FileLocator):
-    def __init__(self, directories: Set[Path], fs: Filesystem):
-        self.directories = directories
+class AggregateFileLocator(FileLocator):
+    def __init__(self, locators: Iterable[FileLocator], fs: Filesystem):
         self.fs = fs
-        self.locators: Mapping[Path, FileLocator] = {
-            directory: DefaultFileLocator(fs, directory) for directory in directories
-        }
+        self.locators = set(locators)
 
     def roots(self) -> Iterable[Path]:
-        return (path for path in self.locators.keys())
+        return chain.from_iterable(locator.roots() for locator in self.locators)
+
+    @staticmethod
+    async def _locate(tasks: Iterable[Task]) -> Optional[Path]:
+        try:
+            gather_results = await asyncio.gather(*tasks)
+            return next(
+                (result for result in gather_results if result is not None), None
+            )
+        except asyncio.CancelledError:
+            for task in tasks:
+                result = task.result()
+                if result is not None:
+                    return result
+        return
 
     async def locate_file(self, name: str) -> Optional[Path]:
-        for _, locator in self.locators.items():
-            result = await locator.locate_file(name)
-            if result is not None:
-                return result
-        return None
+        tasks = [
+            asyncio.create_task(locator.locate_file(name)) for locator in self.locators
+        ]
+        return await self._locate(tasks)
 
     async def locate_directory(self, name: str) -> Optional[Path]:
-        for _, locator in self.locators.items():
-            result = await locator.locate_directory(name)
-            if result is not None:
-                return result
-        return None
+        tasks = [
+            asyncio.create_task(locator.locate_directory(name))
+            for locator in self.locators
+        ]
+        return await self._locate(tasks)
 
     async def collect(self, extension: str) -> AsyncIterable[Path]:
-        for _, locator in self.locators.items():
-            async for item in locator.collect(extension):
-                yield item
+        async for item in combine(
+            locator.collect(".torrent") for locator in self.locators
+        ):
+            yield item
+
+
+class MultipleDirectoryFileLocator(AggregateFileLocator):
+    def __init__(self, directories: Iterable[Path], fs: Filesystem):
+        self.directories = set(directories)
+        locators = (
+            SingleDirectoryFileLocator(fs, directory) for directory in directories
+        )
+        super().__init__(locators, fs)

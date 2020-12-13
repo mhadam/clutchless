@@ -17,7 +17,8 @@ def _handle_mapping(item, directories, files, path, queue):
         if isinstance(child_value, Iterable):
             if path == "/":
                 queue.appendleft(("/" + child_name, child_value))
-            queue.appendleft((path + "/" + child_name, child_value))
+            else:
+                queue.appendleft((path + "/" + child_name, child_value))
 
 
 def _get_paths(spec: Iterable) -> Tuple[Set[Path], Set[Path]]:
@@ -29,6 +30,11 @@ def _get_paths(spec: Iterable) -> Tuple[Set[Path], Set[Path]]:
         path, item = queue.pop()
         if isinstance(item, Mapping):
             _handle_mapping(item, directories, files, path, queue)
+        elif isinstance(item, str):
+            if item.endswith("/"):
+                directories.add(Path(path, item))
+            else:
+                files.add(Path(path, item))
         elif isinstance(item, Iterable):
             for value in item:
                 if isinstance(value, str):
@@ -36,8 +42,8 @@ def _get_paths(spec: Iterable) -> Tuple[Set[Path], Set[Path]]:
                         directories.add(Path(path, value))
                     else:
                         files.add(Path(path, value))
-                if isinstance(item, Mapping):
-                    _handle_mapping(item, directories, files, path, queue)
+                if isinstance(value, Mapping):
+                    _handle_mapping(value, directories, files, path, queue)
     return files, directories
 
 

@@ -27,7 +27,7 @@ from docopt import docopt
 
 from clutchless.command.command import CommandOutput
 from clutchless.configuration import CommandCreator, command_factories
-from clutchless.external.filesystem import DefaultFilesystem, DefaultFileLocator
+from clutchless.external.filesystem import DefaultFilesystem, SingleDirectoryFileLocator
 from clutchless.external.metainfo import DefaultMetainfoReader
 from clutchless.external.transmission import clutch_factory, ClutchApi
 
@@ -75,7 +75,7 @@ def get_dependencies(args: Mapping) -> Mapping[str, Any]:
     return {
         "client": ClutchApi(clutch_client),
         "fs": fs,
-        "locator": DefaultFileLocator(fs),
+        "locator": SingleDirectoryFileLocator(fs),
         "metainfo_reader": DefaultMetainfoReader(),
     }
 

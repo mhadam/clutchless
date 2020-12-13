@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import FIRST_COMPLETED
 from collections import OrderedDict
 from pathlib import Path
 from typing import (
@@ -71,13 +72,20 @@ class FindService:
         self.data_locator = data_locator
 
     def find(self, files: Set[MetainfoFile]) -> Iterable[TorrentData]:
-        async def _callback():
+        async def _find():
             results = set()
             async for result in self.data_locator.find_many(files):
                 results.add(result)
             return results
 
-        return asyncio.run(_callback())
+        async def _wait():
+            find_task = asyncio.create_task(_find())
+            try:
+                return await asyncio.wait_for(find_task, timeout=5)
+            except asyncio.TimeoutError:
+                return find_task.result()
+
+        return asyncio.run(_wait())
 
 
 class ExcludingFindService(FindService):

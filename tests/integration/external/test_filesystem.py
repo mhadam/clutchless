@@ -5,7 +5,7 @@ import pytest
 from clutchless.external.filesystem import (
     DefaultFilesystem,
     FileLocator,
-    DefaultFileLocator,
+    SingleDirectoryFileLocator,
 )
 
 
@@ -44,7 +44,7 @@ async def test_default_locator_find_file(tmp_path):
     file = tmp_path / "test_file"
     file.touch()
     fs = DefaultFilesystem()
-    locator: FileLocator = DefaultFileLocator(fs, tmp_path)
+    locator: FileLocator = SingleDirectoryFileLocator(fs, tmp_path)
 
     result = await locator.locate_file("test_file")
 
@@ -56,7 +56,7 @@ async def test_default_filesystem_find_directory(tmp_path):
     file = tmp_path / "test_dir"
     file.mkdir(parents=True)
     fs = DefaultFilesystem()
-    locator: FileLocator = DefaultFileLocator(fs, tmp_path)
+    locator: FileLocator = SingleDirectoryFileLocator(fs, tmp_path)
 
     result = await locator.locate_directory("test_dir")
 

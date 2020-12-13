@@ -1,14 +1,17 @@
 import asyncio
-from asyncio import QueueEmpty, Future, FIRST_COMPLETED
-from collections import deque
+from asyncio import FIRST_COMPLETED
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Optional, Set, Tuple, Deque, AsyncIterable, Iterable
+from typing import Protocol, Optional, AsyncIterable, Iterable
 
 from torrentool.torrent import Torrent as ExternalTorrent
 
 from clutchless.domain.torrent import MetainfoFile
-from clutchless.external.filesystem import Filesystem, FileLocator, DefaultFileLocator
+from clutchless.external.filesystem import (
+    Filesystem,
+    FileLocator,
+    SingleDirectoryFileLocator,
+)
 
 
 class MetainfoReader(Protocol):
@@ -65,12 +68,11 @@ class CustomTorrentDataLocator(TorrentDataLocator):
     async def find_many(
         self, files: Iterable[MetainfoFile]
     ) -> AsyncIterable[TorrentData]:
-        coroutines = {self.find(file) for file in files}
-        while len(coroutines) > 0:
-            done, pending = await asyncio.wait(coroutines, return_when=FIRST_COMPLETED)
+        pending = {self.find(file) for file in files}
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=FIRST_COMPLETED)
             for d in done:
                 yield d.result()
-            coroutines = pending
 
     async def find(self, file: MetainfoFile) -> TorrentData:
         if file.is_multifile:
@@ -87,7 +89,7 @@ class DefaultTorrentDataLocator(CustomTorrentDataLocator):
     def __init__(self, fs: Filesystem, path: Path = None):
         self.path = path
         reader = DefaultTorrentDataReader(fs)
-        locator = DefaultFileLocator(fs, path)
+        locator = SingleDirectoryFileLocator(fs, path)
         super().__init__(locator, reader)
 
     async def find(self, file: MetainfoFile) -> TorrentData:

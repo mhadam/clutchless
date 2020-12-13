@@ -25,10 +25,12 @@ from clutchless.external.filesystem import (
     Filesystem,
     FileLocator,
     DryRunFilesystem,
+    MultipleDirectoryFileLocator,
 )
 from clutchless.external.metainfo import (
     MetainfoReader,
-    AsyncTorrentDataLocator,
+    CustomTorrentDataLocator,
+    DefaultTorrentDataReader,
 )
 from clutchless.service.file import (
     get_valid_directories,
@@ -63,10 +65,10 @@ def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRes
     metainfo_file_paths = collect_metainfo_paths(fs, metainfo_location_paths)
     metainfo_files = {reader.from_path(path) for path in metainfo_file_paths}
 
-    # data_reader = DefaultTorrentDataReader(fs)
     data_directories = get_valid_directories(fs, args["-d"])
-    # data_file_locator = MultipleDirectoryFileLocator(data_directories, fs)
-    data_locator = AsyncTorrentDataLocator(fs, data_directories)
+    file_locator = MultipleDirectoryFileLocator(data_directories, fs)
+    data_reader = DefaultTorrentDataReader(fs)
+    data_locator = CustomTorrentDataLocator(file_locator, data_reader)
 
     add_service = AddService(client)
 
@@ -114,7 +116,9 @@ def find_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRe
     find_args = FindArgs(args, reader, fs, locator)
 
     data_directories = find_args.get_data_dirs()
-    data_locator = AsyncTorrentDataLocator(fs, data_directories)
+    file_locator = MultipleDirectoryFileLocator(data_directories, fs)
+    data_reader = DefaultTorrentDataReader(fs)
+    data_locator = CustomTorrentDataLocator(file_locator, data_reader)
     service = FindService(data_locator)
 
     return FindCommand(service, find_args.get_torrent_files()), args

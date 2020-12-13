@@ -1,10 +1,14 @@
 import asyncio
-from itertools import chain
 from pathlib import Path
 from typing import Iterable, Set, Tuple, AsyncIterable
 
 from clutchless.domain.torrent import MetainfoFile
-from clutchless.external.filesystem import FileLocator, Filesystem, DefaultFileLocator
+from clutchless.external.filesystem import (
+    FileLocator,
+    Filesystem,
+    SingleDirectoryFileLocator,
+    AggregateFileLocator,
+)
 from clutchless.external.metainfo import MetainfoReader
 
 
@@ -77,31 +81,32 @@ def _sort_into_dirs_and_files(
     return dirs, files
 
 
-async def _collect_metainfos_in_dirs(
-    locators: Iterable[FileLocator],
-) -> AsyncIterable[Path]:
-    for locator in locators:
-        async for metainfo in locator.collect(".torrent"):
-            yield metainfo
-
-
 def _validate_metainfo_files(metainfos: Iterable[Path]) -> Iterable[Path]:
     for file in metainfos:
         if file.suffix == ".torrent":
             yield file
         else:
-            raise ValueError(f"{file} is a valid path")
+            # raise ValueError(f"{file} is not a valid path")
+            pass
 
 
 async def collect_metainfo_paths(
-    fs: Filesystem, paths: Set[Path]
+    fs: Filesystem, paths: Iterable[Path]
 ) -> AsyncIterable[Path]:
-    dirs, files = _sort_into_dirs_and_files(fs, paths)
-    locators = {DefaultFileLocator(fs, path) for path in dirs}
-    async for path in _collect_metainfos_in_dirs(locators):
-        yield path
-    for path in _validate_metainfo_files(files):
-        yield path
+    dirs, files = _sort_into_dirs_and_files(fs, set(paths))
+    for result in _validate_metainfo_files(files):
+        yield result
+    locators = (SingleDirectoryFileLocator(fs, directory) for directory in dirs)
+    async for result in collect_from_aggregate(fs, locators):
+        yield result
+
+
+async def collect_from_aggregate(
+    fs: Filesystem, locators: Iterable[FileLocator]
+) -> AsyncIterable[Path]:
+    locator = AggregateFileLocator(locators, fs)
+    async for result in locator.collect(".torrent"):
+        yield result
 
 
 def get_metainfo_files(
@@ -110,27 +115,28 @@ def get_metainfo_files(
     return {reader.from_path(path) for path in paths}
 
 
-async def collect_metainfo_files_with_timeout(
-    locators: Iterable[FileLocator], timeout: int
+async def collect_metainfo_paths_with_timeout(
+    fs: Filesystem, paths: Iterable[Path], timeout: float
 ) -> Iterable[Path]:
-    async def _callback(locator: FileLocator):
-        results = set()
-        async for collected in locator.collect(".torrent"):
-            results.add(collected)
+    async def _callback():
+        results = []
+        async for result in collect_metainfo_paths(fs, paths):
+            results.append(result)
         return results
 
-    futures = {asyncio.create_task(_callback(locator)): locator for locator in locators}
-    done, pending = await asyncio.wait(futures.keys(), timeout=timeout)
-    done_results = [d.result() for d in done]
-    if len(pending) > 0:
-        for t in pending:
-            locator: FileLocator = futures[t]
-            print(f"timed out trying to search {set(locator.roots())}")
-            t.cancel()
-        cancelled_done, pending = await asyncio.wait(pending)
-        cancelled_done_results = [d.result() for d in cancelled_done]
-        return chain(
-            chain.from_iterable(done_results),
-            chain.from_iterable(cancelled_done_results),
-        )
-    return chain.from_iterable(done_results)
+    task = asyncio.create_task(_callback())
+    await asyncio.sleep(timeout)
+    try:
+        found = task.result()
+    except asyncio.InvalidStateError:
+        task.cancel()
+        await task
+        found = task.result()
+    return found
+
+
+async def collect_metainfo_files_with_timeout(
+    fs: Filesystem, reader: MetainfoReader, paths: Iterable[Path], timeout: float
+) -> Iterable[MetainfoFile]:
+    found = await collect_metainfo_paths_with_timeout(fs, paths, timeout)
+    return get_metainfo_files(reader, found)

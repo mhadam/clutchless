@@ -42,3 +42,22 @@ def test_mock_fs_nested_children():
     result = set(fs.children(Path("/upper/testing")))
 
     assert result == {Path("/", "upper", "testing", file) for file in files}
+
+
+def test_mock_fs_nested_complex():
+    fs = MockFilesystem(
+        {
+            "upper": {"testing": {"file1", "file2.torrent", "file3", "file4.torrent"}},
+            "multi": ["file7", {"another": ["file5", {"level3": {"file8"}}]}],
+        }
+    )
+
+    assert fs.exists(Path("/multi/another/level3"))
+
+
+def test_mock_fs_nested_complex_2():
+    fs = MockFilesystem(
+        {"data": {"torrent_name": ["torrent_file1", {"folder": "torrent_file2"}]}}
+    )
+
+    assert fs.exists(Path("/data/torrent_name/folder/torrent_file2"))
