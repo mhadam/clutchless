@@ -90,6 +90,14 @@ def _validate_metainfo_files(metainfos: Iterable[Path]) -> Iterable[Path]:
             pass
 
 
+async def collect_from_aggregate(
+    fs: Filesystem, locators: Iterable[FileLocator]
+) -> AsyncIterable[Path]:
+    locator = AggregateFileLocator(locators, fs)
+    async for result in locator.collect(".torrent"):
+        yield result
+
+
 async def collect_metainfo_paths(
     fs: Filesystem, paths: Iterable[Path]
 ) -> AsyncIterable[Path]:
@@ -98,14 +106,6 @@ async def collect_metainfo_paths(
         yield result
     locators = (SingleDirectoryFileLocator(fs, directory) for directory in dirs)
     async for result in collect_from_aggregate(fs, locators):
-        yield result
-
-
-async def collect_from_aggregate(
-    fs: Filesystem, locators: Iterable[FileLocator]
-) -> AsyncIterable[Path]:
-    locator = AggregateFileLocator(locators, fs)
-    async for result in locator.collect(".torrent"):
         yield result
 
 
