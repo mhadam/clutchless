@@ -1,8 +1,8 @@
 import asyncio
-from asyncio import FIRST_COMPLETED
+import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Optional, AsyncIterable, Iterable
+from typing import Protocol, Optional
 
 from torrentool.torrent import Torrent as ExternalTorrent
 
@@ -12,6 +12,8 @@ from clutchless.external.filesystem import (
     FileLocator,
     SingleDirectoryFileLocator,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MetainfoReader(Protocol):
@@ -54,31 +56,20 @@ class TorrentDataLocator(Protocol):
         """Returns parent path that contains file/directory named by metainfo name property."""
         raise NotImplementedError
 
-    async def find_many(
-        self, files: Iterable[MetainfoFile]
-    ) -> AsyncIterable[TorrentData]:
-        raise NotImplementedError
-
 
 class CustomTorrentDataLocator(TorrentDataLocator):
     def __init__(self, locator: FileLocator, reader: TorrentDataReader):
         self.locator = locator
         self.reader = reader
 
-    async def find_many(
-        self, files: Iterable[MetainfoFile]
-    ) -> AsyncIterable[TorrentData]:
-        pending = {self.find(file) for file in files}
-        while pending:
-            done, pending = await asyncio.wait(pending, return_when=FIRST_COMPLETED)
-            for d in done:
-                yield d.result()
-
     async def find(self, file: MetainfoFile) -> TorrentData:
-        if file.is_multifile:
-            found = await self.locator.locate_directory(file.name)
-        else:
-            found = await self.locator.locate_file(file.name)
+        try:
+            if file.is_multifile:
+                found = await self.locator.locate_directory(file.name)
+            else:
+                found = await self.locator.locate_file(file.name)
+        except asyncio.CancelledError:
+            return TorrentData(file)
         if found is not None:
             if self.reader.verify(found, file):
                 return TorrentData(file, found)
@@ -94,9 +85,3 @@ class DefaultTorrentDataLocator(CustomTorrentDataLocator):
 
     async def find(self, file: MetainfoFile) -> TorrentData:
         return await super().find(file)
-
-    async def find_many(
-        self, files: Iterable[MetainfoFile]
-    ) -> AsyncIterable[TorrentData]:
-        async for result in super().find_many(files):
-            yield result

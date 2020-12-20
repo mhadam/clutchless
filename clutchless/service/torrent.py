@@ -1,5 +1,5 @@
 import asyncio
-from asyncio import FIRST_COMPLETED
+import logging
 from collections import OrderedDict
 from pathlib import Path
 from typing import (
@@ -11,7 +11,7 @@ from typing import (
     MutableMapping,
     Optional,
     cast,
-    Iterable,
+    Iterable, AsyncIterable,
 )
 from urllib.parse import urlparse
 
@@ -23,6 +23,9 @@ from clutchless.external.metainfo import (
 )
 from clutchless.external.result import QueryResult, CommandResult
 from clutchless.external.transmission import TransmissionApi
+
+
+logger = logging.getLogger(__name__)
 
 
 class AddService:
@@ -71,19 +74,25 @@ class FindService:
     def __init__(self, data_locator: TorrentDataLocator):
         self.data_locator = data_locator
 
-    def find(self, files: Set[MetainfoFile]) -> Iterable[TorrentData]:
-        async def _find():
-            results = set()
-            async for result in self.data_locator.find_many(files):
-                results.add(result)
-            return results
+    async def find_async(self, files: Set[MetainfoFile]) -> AsyncIterable[TorrentData]:
+        pending = {self.data_locator.find(file) for file in files}
+        while pending:
+            done, pending = await asyncio.wait(pending, timeout=0.1)
+            for d in done:
+                yield d.result()
+        for task in pending:
+            task.cancel()
 
+    def find_blocking(self, files: Set[MetainfoFile], timeout: float) -> Iterable[TorrentData]:
         async def _wait():
-            find_task = asyncio.create_task(_find())
-            try:
-                return await asyncio.wait_for(find_task, timeout=5)
-            except asyncio.TimeoutError:
-                return find_task.result()
+            coros = [self.data_locator.find(file) for file in files]
+            done, pending = await asyncio.wait(coros, timeout=timeout)
+            logger.info(f"finished asyncio.wait in find service")
+            for task in pending:
+                task.cancel()
+            for task in pending:
+                await task
+            return [task.result() for task in done | pending]
 
         return asyncio.run(_wait())
 

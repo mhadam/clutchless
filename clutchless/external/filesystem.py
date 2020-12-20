@@ -9,7 +9,6 @@ from typing import (
     Protocol,
     Iterable,
     Optional,
-    Mapping,
     Tuple,
     Deque,
     AsyncIterable,
@@ -217,23 +216,32 @@ class AggregateFileLocator(FileLocator):
             )
         except asyncio.CancelledError:
             for task in tasks:
-                result = task.result()
-                if result is not None:
-                    return result
+                try:
+                    result = task.result()
+                    if result is not None:
+                        return result
+                except asyncio.CancelledError:
+                    pass
         return
 
     async def locate_file(self, name: str) -> Optional[Path]:
         tasks = [
             asyncio.create_task(locator.locate_file(name)) for locator in self.locators
         ]
-        return await self._locate(tasks)
+        try:
+            return await self._locate(tasks)
+        except asyncio.CancelledError:
+            pass
 
     async def locate_directory(self, name: str) -> Optional[Path]:
         tasks = [
             asyncio.create_task(locator.locate_directory(name))
             for locator in self.locators
         ]
-        return await self._locate(tasks)
+        try:
+            return await self._locate(tasks)
+        except asyncio.CancelledError:
+            pass
 
     async def collect(self, extension: str) -> AsyncIterable[Path]:
         async for item in combine(

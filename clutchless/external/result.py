@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, TypeVar, Generic, Union, Sequence
+from typing import Optional, TypeVar, Generic, Sequence
 
 
 @dataclass

@@ -66,7 +66,8 @@ def setup_logging(verbosity):
     base_loglevel = 30
     verbosity = min(verbosity, 2)
     loglevel = base_loglevel - (verbosity * 10)
-    logging.basicConfig(level=loglevel, format="%(message)s")
+    logger = logging.getLogger("root")
+    logger.setLevel(loglevel)
 
 
 def get_dependencies(args: Mapping) -> Mapping[str, Any]:
