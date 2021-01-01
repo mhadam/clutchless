@@ -19,6 +19,7 @@ The available clutchless commands are:
 See 'clutchless help <command>' for more information on a specific command.
 
 """
+import asyncio
 import logging
 import os
 import sys
@@ -43,6 +44,9 @@ class Application:
         creator = CommandCreator(self.dependencies, command_factories)
         try:
             command, subcommand_args = creator.get_command(self.args)
+        except asyncio.CancelledError:
+            print("Cancelled task")
+            return
         except Exception as e:
             print(e)
             return
