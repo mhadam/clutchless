@@ -1,4 +1,7 @@
-from typing import Set
+import asyncio
+import logging
+import signal
+from typing import Set, MutableSequence
 
 from colorama import init, deinit, Fore
 
@@ -6,6 +9,9 @@ from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.metainfo import TorrentData
 from clutchless.service.torrent import FindService
+
+
+logger = logging.getLogger(__name__)
 
 
 class FindOutput(CommandOutput):
@@ -43,17 +49,51 @@ class FindOutput(CommandOutput):
 
 class FindCommand(Command):
     def __init__(
-        self,
-        find_service: FindService,
-        metainfo_files: Set[MetainfoFile],
+        self, find_service: FindService, metainfo_files: Set[MetainfoFile],
     ):
         self.find_service = find_service
         self.metainfo_files = metainfo_files
 
     def run(self) -> FindOutput:
-        results = self.find_service.find(self.metainfo_files)
+        async def _find_subroutine():
+            collected: MutableSequence[TorrentData] = []
+            completion_count = len(self.metainfo_files)
+            found_count = 0
+            generator = self.find_service.find_async(self.metainfo_files)
+            print(f"Starting search - press Ctrl+C to cancel")
+            while True:
+                try:
+                    result = await generator.__anext__()
+                    collected.append(result)
+                    found_count += 1
+                    logger.info(f"found {result}")
+                    if result.location:
+                        print(
+                            f"{found_count}/{completion_count} {result.metainfo_file} found at {result.location}"
+                        )
+                except StopAsyncIteration:
+                    logger.info(f"generator exit")
+                    break
+                except asyncio.CancelledError:
+                    logger.info(f"closing generator")
+                    await generator.aclose()
+            logger.info(f"finished find subroutine collecting {collected}")
+            return collected
+
+        async def _main():
+            find_task = asyncio.create_task(_find_subroutine())
+            loop = asyncio.get_event_loop()
+
+            def _interrupt():
+                find_task.cancel()
+
+            loop.add_signal_handler(signal.SIGINT, _interrupt)
+            return await find_task
+
+        results = asyncio.run(_main())
         found = {result for result in results if result.location is not None}
         rest = {result.metainfo_file for result in results if result.location is None}
+        logger.info(f"finished with results {found, rest}")
         output = FindOutput(found, rest)
         return output
 

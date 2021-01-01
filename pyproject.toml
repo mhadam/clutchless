@@ -15,7 +15,7 @@ clutchless = 'clutchless.entrypoints.cli:main'
 [tool.poetry.dependencies]
 python = "^3.7"
 colorama = "^0.4.4"
-transmission-clutch = "^5.0.0"
+transmission-clutch = "^6.0.0"
 torrentool = "^1.1.0"
 texttable = "^1.6.3"
 docopt = "^0.6.2"

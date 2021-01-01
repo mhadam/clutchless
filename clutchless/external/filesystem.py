@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from asyncio import Task
 from collections import deque
@@ -12,9 +13,13 @@ from typing import (
     Tuple,
     Deque,
     AsyncIterable,
+    AsyncGenerator,
 )
 
 from clutchless.stream import combine
+
+
+logger = logging.getLogger(__name__)
 
 
 class Filesystem(Protocol):
@@ -117,7 +122,7 @@ class FileLocator(Protocol):
         """When successful, returns parent path that holds directory 'name'."""
         raise NotImplementedError
 
-    async def collect(self, extension: str) -> AsyncIterable[Path]:
+    async def collect(self, extension: str) -> AsyncGenerator[Path, None]:
         raise NotImplementedError
 
 
@@ -183,14 +188,11 @@ class SingleDirectoryFileLocator(FileLocator):
                     queue.appendleft(child_path)
         return None
 
-    async def collect(self, extension: str) -> AsyncIterable[Path]:
+    async def collect(self, extension: str) -> AsyncGenerator[Path, None]:
         queue: Deque[Path] = deque()
         queue.append(self.path)
         while len(queue) > 0:
-            try:
-                await asyncio.sleep(0)
-            except asyncio.CancelledError:
-                return
+            await asyncio.sleep(0)
             item = queue.pop()
             for child_path in self.fs.children(item):
                 if self.fs.is_file(child_path) and child_path.suffix == extension:
@@ -222,6 +224,7 @@ class AggregateFileLocator(FileLocator):
                         return result
                 except asyncio.CancelledError:
                     pass
+        logger.info("exiting aggregate locator")
         return
 
     async def locate_file(self, name: str) -> Optional[Path]:
@@ -243,7 +246,7 @@ class AggregateFileLocator(FileLocator):
         except asyncio.CancelledError:
             pass
 
-    async def collect(self, extension: str) -> AsyncIterable[Path]:
+    async def collect(self, extension: str) -> AsyncGenerator[Path, None]:
         async for item in combine(
             locator.collect(".torrent") for locator in self.locators
         ):

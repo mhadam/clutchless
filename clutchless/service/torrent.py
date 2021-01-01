@@ -11,7 +11,8 @@ from typing import (
     MutableMapping,
     Optional,
     cast,
-    Iterable, AsyncIterable,
+    Iterable,
+    AsyncGenerator,
 )
 from urllib.parse import urlparse
 
@@ -23,7 +24,6 @@ from clutchless.external.metainfo import (
 )
 from clutchless.external.result import QueryResult, CommandResult
 from clutchless.external.transmission import TransmissionApi
-
 
 logger = logging.getLogger(__name__)
 
@@ -74,16 +74,32 @@ class FindService:
     def __init__(self, data_locator: TorrentDataLocator):
         self.data_locator = data_locator
 
-    async def find_async(self, files: Set[MetainfoFile]) -> AsyncIterable[TorrentData]:
-        pending = {self.data_locator.find(file) for file in files}
+    async def find_async(
+        self, files: Set[MetainfoFile]
+    ) -> AsyncGenerator[TorrentData, None]:
+        pending = {asyncio.create_task(self.data_locator.find(file)) for file in files}
+        logger.info(f"{pending}")
         while pending:
-            done, pending = await asyncio.wait(pending, timeout=0.1)
-            for d in done:
-                yield d.result()
-        for task in pending:
-            task.cancel()
+            try:
+                logger.info(f"pre-await {pending}")
+                done, pending = await asyncio.wait(pending)
+                logger.info(f"post-wait {done, pending}")
+                while done:
+                    d = done.pop()
+                    logger.info(f"yielding result {d}")
+                    yield d.result()
+            except (GeneratorExit, asyncio.CancelledError) as e:
+                logger.info(f"exiting find_async {type(e)}")
+                for task in pending:
+                    task.cancel()
+                for task in pending:
+                    await task
+                    yield task.result()
+                break
 
-    def find_blocking(self, files: Set[MetainfoFile], timeout: float) -> Iterable[TorrentData]:
+    def find_blocking(
+        self, files: Set[MetainfoFile], timeout: float
+    ) -> Iterable[TorrentData]:
         async def _wait():
             coros = [self.data_locator.find(file) for file in files]
             done, pending = await asyncio.wait(coros, timeout=timeout)

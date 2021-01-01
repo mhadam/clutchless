@@ -8,39 +8,17 @@ from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import SingleDirectoryFileLocator
 from clutchless.external.metainfo import MetainfoReader
 from clutchless.service.file import (
-    collect_metainfo_paths,
-    collect_metainfo_paths_with_timeout,
-    collect_from_aggregate,
-    collect_metainfo_files_with_timeout,
+    collect_from_aggregate, collect_metainfo_paths, _collect, collect_metainfo_files,
 )
 from tests.mock_fs import MockFilesystem, InfinitelyDeepFilesystem
 
 
-@pytest.mark.asyncio
-async def test_collect_metainfo_files():
+def test_collect_metainfo_paths():
     raw_paths = {
-        Path("/some_path"),
-        Path("/another_path/file.torrent"),
+        "/some_path",
+        "/another_path/file.torrent",
     }
 
-    filesystem = MockFilesystem(
-        {
-            "some_path": {"child1": {"file2.torrent", "file3"}},
-            "another_path": {"file.torrent"},
-        }
-    )
-
-    results = set()
-    async for path in collect_metainfo_paths(filesystem, raw_paths):
-        results.add(path)
-
-    assert set(results) == {
-        Path("/another_path/file.torrent"),
-        Path("/some_path/child1/file2.torrent"),
-    }
-
-
-def test_collect_with_timeout():
     fs = MockFilesystem(
         {
             "some_path": {"child1": {"file2.torrent", "file3"}},
@@ -48,10 +26,10 @@ def test_collect_with_timeout():
         }
     )
 
-    paths = {Path("/some_path")}
-    results = asyncio.run(collect_metainfo_paths_with_timeout(fs, paths, 0.001))
+    results = collect_metainfo_paths(fs, raw_paths)
 
     assert set(results) == {
+        Path("/another_path/file.torrent"),
         Path("/some_path/child1/file2.torrent"),
     }
 
@@ -81,15 +59,12 @@ def test_aggregate_with_timeout_cancel():
         await asyncio.sleep(0.001)
         return await task
 
-    results = asyncio.run(_timed())
-
-    assert set(results) == {
-        Path("/another_path/file.torrent"),
-        Path("/some_path/child1/file2.torrent"),
-    }
+    with pytest.raises(asyncio.CancelledError):
+        _ = asyncio.run(_timed())
 
 
-def test_collect_metainfo_paths_with_timeout():
+@pytest.mark.asyncio
+async def test_collect_task_cancel():
     fs = MockFilesystem(
         {
             "some_path": {"child1": {"file2.torrent", "file3"}},
@@ -99,14 +74,24 @@ def test_collect_metainfo_paths_with_timeout():
 
     paths = {Path("/")}
 
-    coro = collect_metainfo_paths_with_timeout(fs, paths, 0.001)
+    task = asyncio.create_task(_collect(fs, paths))
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
 
-    result = asyncio.run(coro)
 
-    assert set(result) == {
-        Path("/another_path/file.torrent"),
-        Path("/some_path/child1/file2.torrent"),
-    }
+@pytest.mark.asyncio
+async def test_collect_task_hanging_cancel():
+    fs = InfinitelyDeepFilesystem()
+
+    paths = {Path("/")}
+
+    task = asyncio.create_task(_collect(fs, paths))
+    # needs a pause otherwise will immediately cancel without executing task
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
 
 
 def test_collect_metainfo_files_with_timeout(mocker: MockerFixture):
@@ -125,9 +110,7 @@ def test_collect_metainfo_files_with_timeout(mocker: MockerFixture):
 
     reader.from_path.side_effect = from_path
 
-    coro = collect_metainfo_files_with_timeout(fs, reader, paths, 0.001)
-
-    result = set(asyncio.run(coro))
+    result = collect_metainfo_files(reader, fs, paths)
 
     assert result == {
         from_path(Path("/some_path/child1/file2.torrent")),

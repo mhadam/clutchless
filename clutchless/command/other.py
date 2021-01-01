@@ -2,6 +2,9 @@ from clutchless.command.command import CommandOutput, Command
 
 
 class MissingCommandOutput(CommandOutput):
+    def dry_run_display(self):
+        raise NotImplementedError
+
     def display(self):
         print(
             "Empty command! This is probably a bug. Be ambitious, investigate it and fix it!"
@@ -17,6 +20,9 @@ class MissingCommand(Command):
 
 
 class InvalidCommandOutput(CommandOutput):
+    def dry_run_display(self):
+        raise NotImplementedError
+
     def display(self):
         print("Invalid command!")
 

@@ -1,4 +1,3 @@
-import asyncio
 from collections import defaultdict
 from pathlib import Path
 from typing import Sequence, Set, Mapping, Any, DefaultDict, Callable
@@ -35,9 +34,8 @@ from clutchless.external.metainfo import (
 )
 from clutchless.service.file import (
     get_valid_directories,
-    get_valid_paths,
-    collect_metainfo_paths_with_timeout,
-    collect_metainfo_files_with_timeout,
+    collect_metainfo_files,
+    collect_metainfo_paths,
 )
 from clutchless.service.torrent import (
     AddService,
@@ -49,7 +47,6 @@ from clutchless.service.torrent import (
     LinkOnlyAddService,
 )
 from clutchless.spec.find import FindArgs
-from clutchless.spec.shared import PathParser
 
 
 def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
@@ -64,9 +61,7 @@ def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRes
     if not args["--delete"]:
         fs = DryRunFilesystem()
 
-    metainfo_location_paths = get_valid_paths(fs, args["<metainfo>"])
-    coro = collect_metainfo_paths_with_timeout(fs, metainfo_location_paths, 2)
-    metainfo_file_paths = asyncio.run(coro)
+    metainfo_file_paths = collect_metainfo_paths(fs, args["<metainfo>"])
     metainfo_files = {reader.from_path(path) for path in metainfo_file_paths}
 
     data_directories = get_valid_directories(fs, args["-d"])
@@ -126,7 +121,8 @@ def find_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRe
     data_locator = CustomTorrentDataLocator(file_locator, data_reader)
     service = FindService(data_locator)
 
-    return FindCommand(service, find_args.get_torrent_files()), args
+    metainfo_files = find_args.get_torrent_files()
+    return FindCommand(service, metainfo_files), args
 
 
 def organize_factory(
@@ -175,10 +171,8 @@ def prune_folder_factory(
 
     prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
     raw_folders: Sequence[str] = prune_args.get("<metainfo>")
-    folder_paths: Set[Path] = PathParser.parse_paths(raw_folders)
 
-    coro = collect_metainfo_files_with_timeout(fs, reader, folder_paths, 2)
-    metainfo_files: Set[MetainfoFile] = set(asyncio.run(coro))
+    metainfo_files: Set[MetainfoFile] = collect_metainfo_files(reader, fs, raw_folders)
     return PruneFolderCommand(service, fs, metainfo_files), prune_args
 
 
@@ -216,7 +210,6 @@ class InvalidCommandFactory(CommandFactory):
 
 invalid_factory: Callable[[], CommandFactory] = InvalidCommandFactory
 
-
 command_factories: DefaultDict[Any, CommandFactory] = defaultdict(
     invalid_factory,
     {
@@ -232,9 +225,7 @@ command_factories: DefaultDict[Any, CommandFactory] = defaultdict(
 
 class CommandCreator:
     def __init__(
-        self,
-        dependencies: Mapping[str, Any],
-        factories: Mapping[str, CommandFactory],
+        self, dependencies: Mapping[str, Any], factories: Mapping[str, CommandFactory],
     ):
         self.dependencies = dependencies
         self.factories = factories

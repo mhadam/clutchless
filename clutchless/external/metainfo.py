@@ -63,12 +63,16 @@ class CustomTorrentDataLocator(TorrentDataLocator):
         self.reader = reader
 
     async def find(self, file: MetainfoFile) -> TorrentData:
+        logger.info(f"find started {file}")
         try:
             if file.is_multifile:
+                logger.info(f"awaiting multi-file {file}")
                 found = await self.locator.locate_directory(file.name)
             else:
+                logger.info(f"awaiting single-file {file}")
                 found = await self.locator.locate_file(file.name)
         except asyncio.CancelledError:
+            logger.info(f"cancelled find for {file}")
             return TorrentData(file)
         if found is not None:
             if self.reader.verify(found, file):

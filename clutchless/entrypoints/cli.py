@@ -20,7 +20,9 @@ See 'clutchless help <command>' for more information on a specific command.
 
 """
 import logging
+import os
 import sys
+from pathlib import Path
 from typing import Mapping, Any
 
 from docopt import docopt
@@ -38,9 +40,12 @@ class Application:
         self.dependencies = dependencies
 
     def run(self):
-        logging.basicConfig(level=logging.DEBUG)
         creator = CommandCreator(self.dependencies, command_factories)
-        command, subcommand_args = creator.get_command(self.args)
+        try:
+            command, subcommand_args = creator.get_command(self.args)
+        except Exception as e:
+            print(e)
+            return
         is_dry_run = subcommand_args.get("--dry-run")
         try:
             if is_dry_run is not None and is_dry_run:
@@ -48,7 +53,7 @@ class Application:
                     result: CommandOutput = command.dry_run()
                     result.dry_run_display()
                 except NotImplementedError:
-                    print("this command does not have a dry-run mode")
+                    print("This command does not have a dry-run mode")
                     return
             else:
                 result: CommandOutput = command.run()
@@ -59,15 +64,26 @@ class Application:
 
 
 def parse_logging_level(args: Mapping) -> int:
-    return args.get("--verbose", 0)
+    return int(args.get("--verbose", 0))
 
 
-def setup_logging(verbosity):
+def get_logging_level(verbosity) -> int:
     base_loglevel = 30
     verbosity = min(verbosity, 2)
-    loglevel = base_loglevel - (verbosity * 10)
-    logger = logging.getLogger("root")
-    logger.setLevel(loglevel)
+    return base_loglevel - (verbosity * 10)
+
+
+def get_file_handler() -> logging.FileHandler:
+    cwd_path = Path(os.getcwd())
+    log_path_str = str(cwd_path / "clutchless.log")
+
+    file_handler = logging.FileHandler(log_path_str, "w")
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    file_handler.setFormatter(formatter)
+    return file_handler
 
 
 def get_dependencies(args: Mapping) -> Mapping[str, Any]:
@@ -86,7 +102,14 @@ def main():
         args = docopt(__doc__, options_first=True)
 
         verbosity = parse_logging_level(args)
-        setup_logging(verbosity)
+        level = get_logging_level(verbosity)
+        logging.basicConfig(level=level)
+        logger = logging.getLogger()
+        logger.handlers = []
+
+        if verbosity > 0:
+            handler = get_file_handler()
+            logger.addHandler(handler)
 
         dependencies = get_dependencies(args)
         application = Application(args, dependencies)

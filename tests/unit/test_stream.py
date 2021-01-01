@@ -15,7 +15,7 @@ async def test_combine_cancel():
     gens = {_test()}
 
     async def _ex():
-        async for result in combine(gens):
+        async for _ in combine(gens, raise_exc=False):
             pass
         return "finished up"
 
