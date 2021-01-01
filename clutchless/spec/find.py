@@ -17,7 +17,9 @@ from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem, FileLocator
 from clutchless.external.metainfo import MetainfoReader
 from clutchless.service.file import (
-    get_valid_directories, collect_metainfo_paths, collect_metainfo_files,
+    get_valid_directories,
+    collect_metainfo_paths,
+    collect_metainfo_files,
 )
 
 

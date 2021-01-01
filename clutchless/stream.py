@@ -9,7 +9,9 @@ async def _anext(gen):
 T = TypeVar("T")
 
 
-async def combine(gens: Iterable[AsyncGenerator[T, None]], raise_exc: bool = True) -> AsyncGenerator[T, None]:
+async def combine(
+    gens: Iterable[AsyncGenerator[T, None]], raise_exc: bool = True
+) -> AsyncGenerator[T, None]:
     pending = {asyncio.create_task(_anext(gen)) for gen in gens}
     while pending:
         try:

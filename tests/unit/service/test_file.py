@@ -8,7 +8,10 @@ from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import SingleDirectoryFileLocator
 from clutchless.external.metainfo import MetainfoReader
 from clutchless.service.file import (
-    collect_from_aggregate, collect_metainfo_paths, _collect, collect_metainfo_files,
+    collect_from_aggregate,
+    collect_metainfo_paths,
+    _collect,
+    collect_metainfo_files,
 )
 from tests.mock_fs import MockFilesystem, InfinitelyDeepFilesystem
 

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import signal
 from collections import OrderedDict
 from pathlib import Path
 from typing import (
@@ -111,6 +112,46 @@ class FindService:
             return [task.result() for task in done | pending]
 
         return asyncio.run(_wait())
+
+    def find(self, metainfo_files: Iterable[MetainfoFile]):
+        metainfo_files = set(metainfo_files)
+
+        async def _find_subroutine():
+            collected: MutableSequence[TorrentData] = []
+            completion_count = len(metainfo_files)
+            found_count = 0
+            generator = self.find_async(metainfo_files)
+            print(f"Starting search - press Ctrl+C to cancel")
+            while True:
+                try:
+                    result = await generator.__anext__()
+                    collected.append(result)
+                    found_count += 1
+                    logger.info(f"found {result}")
+                    if result.location:
+                        print(
+                            f"{found_count}/{completion_count} {result.metainfo_file} found at {result.location}"
+                        )
+                except StopAsyncIteration:
+                    logger.info(f"generator exit")
+                    break
+                except asyncio.CancelledError:
+                    logger.info(f"closing generator")
+                    await generator.aclose()
+            logger.info(f"finished find subroutine collecting {collected}")
+            return collected
+
+        async def _main():
+            find_task = asyncio.create_task(_find_subroutine())
+            loop = asyncio.get_event_loop()
+
+            def _interrupt():
+                find_task.cancel()
+
+            loop.add_signal_handler(signal.SIGINT, _interrupt)
+            return await find_task
+
+        return asyncio.run(_main())
 
 
 class ExcludingFindService(FindService):
