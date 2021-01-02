@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import signal
+from asyncio import FIRST_COMPLETED
 from collections import OrderedDict
 from pathlib import Path
 from typing import (
@@ -83,7 +84,7 @@ class FindService:
         while pending:
             try:
                 logger.info(f"pre-await {pending}")
-                done, pending = await asyncio.wait(pending)
+                done, pending = await asyncio.wait(pending, return_when=FIRST_COMPLETED)
                 logger.info(f"post-wait {done, pending}")
                 while done:
                     d = done.pop()
@@ -121,14 +122,13 @@ class FindService:
             completion_count = len(metainfo_files)
             found_count = 0
             generator = self.find_async(metainfo_files)
-            print(f"Starting search - press Ctrl+C to cancel")
             while True:
                 try:
                     result = await generator.__anext__()
                     collected.append(result)
-                    found_count += 1
                     logger.info(f"found {result}")
                     if result.location:
+                        found_count += 1
                         print(
                             f"{found_count}/{completion_count} {result.metainfo_file} found at {result.location}"
                         )
@@ -142,6 +142,7 @@ class FindService:
             return collected
 
         async def _main():
+            print(f"Starting search - press Ctrl+C to cancel")
             find_task = asyncio.create_task(_find_subroutine())
             loop = asyncio.get_event_loop()
 
@@ -149,7 +150,8 @@ class FindService:
                 find_task.cancel()
 
             loop.add_signal_handler(signal.SIGINT, _interrupt)
-            return await find_task
+            results = await find_task
+            return results
 
         return asyncio.run(_main())
 

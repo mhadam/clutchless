@@ -122,6 +122,12 @@ def find_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRe
     service = FindService(data_locator)
 
     metainfo_files = find_args.get_torrent_files()
+    if not metainfo_files:
+        raise RuntimeError("Did not find any metainfo files")
+    else:
+        print(f"Found {len(metainfo_files)} metainfo files:")
+        for file in metainfo_files:
+            print(f"{file.name} at {file.path.parent}")
     return FindCommand(service, metainfo_files), args
 
 
