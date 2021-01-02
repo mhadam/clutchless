@@ -27,6 +27,11 @@ Clutchless
     :target: https://coveralls.io/github/mhadam/clutchless?branch=develop
 
 
+Support
+=======
+
+btc: bc1q9spjh7nuqatz4pa7dscd0357p3ql588tla6af7
+
 Quick start
 ===========
 
@@ -59,7 +64,7 @@ The ``-h`` flag can be used to bring up documentation, e.g. ``clutchless -h``::
     See 'clutchless help <command>' for more information on a specific command.
 
 Examples
-********
+========
 
 To copy all the metainfo files (``.torrent``) in Transmission to ``~/torrent_archive``::
 
