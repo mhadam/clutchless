@@ -231,7 +231,9 @@ command_factories: DefaultDict[Any, CommandFactory] = defaultdict(
 
 class CommandCreator:
     def __init__(
-        self, dependencies: Mapping[str, Any], factories: Mapping[str, CommandFactory],
+        self,
+        dependencies: Mapping[str, Any],
+        factories: Mapping[str, CommandFactory],
     ):
         self.dependencies = dependencies
         self.factories = factories
