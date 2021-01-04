@@ -10,7 +10,11 @@ from clutchless.command.add import (
 )
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
-from clutchless.external.metainfo import TorrentDataLocator, DefaultTorrentDataLocator
+from clutchless.external.metainfo import (
+    TorrentDataLocator,
+    DefaultTorrentDataLocator,
+    TorrentData,
+)
 from clutchless.external.result import CommandResult
 from clutchless.external.transmission import TransmissionApi
 from clutchless.service.torrent import AddService, FindService
@@ -89,7 +93,9 @@ def test_add_linking_unknown(mocker: MockerFixture):
         },
         path,
     )
-    command = LinkingAddCommand(find_service, add_service, fs, {file})
+    command = LinkingAddCommand(
+        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+    )
 
     output: LinkingAddOutput = command.run()
 
@@ -115,12 +121,14 @@ def test_add_linking_success(mocker: MockerFixture):
         },
         path,
     )
-    command = LinkingAddCommand(find_service, add_service, fs, {file})
+    command = LinkingAddCommand(
+        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+    )
 
     output: LinkingAddOutput = command.run()
 
     assert not fs.exists(path)
-    assert output.added_torrents == [file]
+    assert output.linked_torrents == {file: Path("/some/place")}
 
 
 def test_add_linking_duplicate(mocker: MockerFixture):
@@ -143,7 +151,9 @@ def test_add_linking_duplicate(mocker: MockerFixture):
         },
         path,
     )
-    command = LinkingAddCommand(find_service, add_service, fs, {file})
+    command = LinkingAddCommand(
+        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+    )
 
     output: LinkingAddOutput = command.run()
 

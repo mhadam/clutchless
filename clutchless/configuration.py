@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Sequence, Set, Mapping, Any, DefaultDict, Callable
+from typing import Sequence, Set, Mapping, Any, DefaultDict, Callable, Iterable
 
 from docopt import docopt
 
@@ -31,6 +31,7 @@ from clutchless.external.metainfo import (
     MetainfoReader,
     CustomTorrentDataLocator,
     DefaultTorrentDataReader,
+    TorrentData,
 )
 from clutchless.service.file import (
     get_valid_directories,
@@ -77,7 +78,13 @@ def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRes
         find_service = FindService(data_locator)
         if not args["--force"]:
             add_service = LinkOnlyAddService(client)
-        command = LinkingAddCommand(find_service, add_service, fs, metainfo_files)
+
+        torrent_data: Iterable[TorrentData] = find_service.find(metainfo_files)
+        response = input("Continue? [Y/N]:")
+        if response.strip().lower() != "y":
+            raise RuntimeError("User decided not to continue")
+
+        command = LinkingAddCommand(find_service, add_service, fs, torrent_data)
     return command, args
 
 

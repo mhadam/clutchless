@@ -160,12 +160,12 @@ class LinkingAddCommand(Command):
         find_service: FindService,
         add_service: AddService,
         fs: Filesystem,
-        metainfo_files: Set[MetainfoFile],
+        torrent_data: Iterable[TorrentData],
     ):
         self.find_service = find_service
         self.add_service = add_service
         self.fs = fs
-        self.metainfo_files = metainfo_files
+        self.torrent_data = set(torrent_data)
 
     def __make_output(self) -> LinkingAddOutput:
         output = LinkingAddOutput()
@@ -175,11 +175,7 @@ class LinkingAddCommand(Command):
         return output
 
     def run(self) -> LinkingAddOutput:
-        results: Iterable[TorrentData] = self.find_service.find(self.metainfo_files)
-        response = input("Continue? [Y/N]:")
-        if response.strip().lower() != "y":
-            raise RuntimeError("User decided not to continue")
-        for result in results:
+        for result in self.torrent_data:
             file, location = result.metainfo_file, result.location
             if location is not None and file.path is not None:
                 self.add_service.add_with_data(file, location)
@@ -190,11 +186,18 @@ class LinkingAddCommand(Command):
                 self.fs.remove(success.path)
         return self.__make_output()
 
+    def _get_linked(self) -> Iterable[TorrentData]:
+        return (data for data in self.torrent_data if data.location is not None)
+
+    def _get_rest(self) -> Iterable[MetainfoFile]:
+        return (
+            data.metainfo_file for data in self.torrent_data if data.location is None
+        )
+
     def dry_run(self) -> LinkingAddOutput:
         output = LinkingAddOutput()
-        linked, rest = self.find_service.find(self.metainfo_files)
-        for linked_file in linked:
+        for linked_file in self._get_linked():
             output.linked_torrents[linked_file.metainfo_file] = linked_file.location
-        for rest_file in rest:
+        for rest_file in self._get_rest():
             output.added_torrents.append(rest_file)
         return output

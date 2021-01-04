@@ -114,7 +114,7 @@ class FindService:
 
         return asyncio.run(_wait())
 
-    def find(self, metainfo_files: Iterable[MetainfoFile]):
+    def find(self, metainfo_files: Iterable[MetainfoFile]) -> Iterable[TorrentData]:
         metainfo_files = set(metainfo_files)
 
         async def _find_subroutine():
