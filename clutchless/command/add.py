@@ -176,6 +176,9 @@ class LinkingAddCommand(Command):
 
     def run(self) -> LinkingAddOutput:
         results: Iterable[TorrentData] = self.find_service.find(self.metainfo_files)
+        response = input("Continue? [Y/N]:")
+        if response.strip().lower() != "y":
+            raise RuntimeError("User decided not to continue")
         for result in results:
             file, location = result.metainfo_file, result.location
             if location is not None and file.path is not None:
