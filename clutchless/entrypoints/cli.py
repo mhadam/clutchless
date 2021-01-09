@@ -35,6 +35,9 @@ from clutchless.external.metainfo import DefaultMetainfoReader
 from clutchless.external.transmission import clutch_factory, ClutchApi
 
 
+logger = logging.getLogger(__name__)
+
+
 class Application:
     def __init__(self, args: Mapping, dependencies: Mapping):
         self.args = args
@@ -48,6 +51,7 @@ class Application:
             print("Cancelled task")
             return
         except Exception as e:
+            logger.warning(e, exc_info=True)
             print(e)
             return
         is_dry_run = subcommand_args.get("--dry-run")

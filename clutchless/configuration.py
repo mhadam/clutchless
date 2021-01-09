@@ -52,7 +52,7 @@ from clutchless.spec.find import FindArgs
 
 def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
     client = dependencies["client"]
-    reader: MetainfoReader = dependencies["reader"]
+    reader: MetainfoReader = dependencies["metainfo_reader"]
 
     # parse arguments
     from clutchless.spec import add as add_command
