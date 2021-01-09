@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import MutableMapping, MutableSequence, Set, Sequence, Iterable
@@ -7,6 +8,9 @@ from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
 from clutchless.external.metainfo import TorrentData
 from clutchless.service.torrent import AddService, FindService
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -22,26 +26,26 @@ class AddOutput(CommandOutput):
         duplicated_count = len(self.duplicated_torrents)
         deleted_count = len(self.deleted_torrents)
         if added_count > 0:
-            print("Added the following torrents:")
+            print(f"{added_count} torrents were added:")
             for added in self.added_torrents:
                 print(f"{added.name}")
         if failed_count > 0:
-            print("The following torrents failed:")
+            print(f"{failed_count} torrents failed:")
             for (failed_file, error) in self.failed_torrents.items():
                 print(f"{failed_file.name} because: {error}")
         if duplicated_count > 0:
-            print("The following torrents are duplicates:")
+            print(f"{duplicated_count} torrents are duplicates:")
             for (duplicate_file, error) in self.duplicated_torrents.items():
                 print(f"{duplicate_file.name}")
         if deleted_count > 0:
-            print("The following torrents were deleted:")
+            print(f"{deleted_count} torrents were deleted:")
             for deleted_file in self.deleted_torrents:
                 print(f"{deleted_file.name} at {deleted_file.path}")
 
     def dry_run_display(self):
         added_count = len(self.added_torrents)
         if added_count > 0:
-            print("The following torrents would be added and deleted:")
+            print(f"{added_count} torrents would be added and deleted:")
             for file in self.added_torrents:
                 print(f"{file.name} at {file.path}")
 
@@ -85,23 +89,23 @@ class LinkingAddOutput(CommandOutput):
         duplicated_count = len(self.duplicated_torrents)
         deleted_count = len(self.deleted_torrents)
         if linked_count > 0:
-            print("Linked the following torrents:")
+            print(f"Linked {linked_count} torrents:")
             for (linked_file, linked_path) in self.linked_torrents.items():
                 print(f"{linked_file.name} at {linked_path}")
         if added_count > 0:
-            print("Added the following torrents:")
+            print(f"Added {added_count} torrents:")
             for added in self.added_torrents:
                 print(f"{added.name}")
         if failed_count > 0:
-            print("The following torrents failed:")
+            print(f"{failed_count} failed:")
             for (failed_file, error) in self.failed_torrents.items():
                 print(f"{failed_file.name} because: {error}")
         if duplicated_count > 0:
-            print("The following torrents are duplicates:")
+            print(f"There are {duplicated_count} duplicates:")
             for (duplicate_file, error) in self.duplicated_torrents.items():
                 print(f"{duplicate_file.name}")
         if deleted_count > 0:
-            print("The following torrents were deleted:")
+            print(f"{deleted_count} torrents were deleted:")
             for deleted_file in self.deleted_torrents:
                 print(f"{deleted_file.name} at {deleted_file.path}")
 
@@ -109,11 +113,11 @@ class LinkingAddOutput(CommandOutput):
         linked_count = len(self.linked_torrents)
         added_count = len(self.added_torrents)
         if linked_count > 0:
-            print("Will add the following torrents with data:")
+            print(f"Would add {linked_count} torrents with data:")
             for (linked_file, linked_path) in self.linked_torrents.items():
                 print(f"{linked_file.name} at {linked_path}")
         if added_count > 0:
-            print("Will add the following torrents without data:")
+            print(f"Would add {added_count} torrents without data:")
             for added in self.added_torrents:
                 print(f"{added.name}")
 
@@ -143,7 +147,7 @@ class AddCommand(Command):
             if file.path is not None:
                 self.service.add(file)
             else:
-                pass  # todo: log here perhaps
+                logger.warning(f"{file} does not have a file associated")
         for file in self.service.success:
             self.fs.remove(file.path)
         return self.__make_output()

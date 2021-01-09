@@ -24,23 +24,29 @@ class ArchiveOutput(CommandOutput):
     query_failure: Optional[str] = None
 
     def dry_run_display(self):
-        if len(self.actions) > 0:
-            print(f"Will move the following torrents to {self.destination}:")
+        actions_count = len(self.actions)
+        if actions_count > 0:
+            print(f"Will move {actions_count} metainfo files to {self.destination}:")
             for action in self.actions:
                 print(f"{action.source}")
+        else:
+            print(f"No metainfo files to move")
 
     def display(self):
         if self.query_failure is not None:
             print(f"Query failed: {self.query_failure}")
         else:
-            if len(self.actions) > 0:
-                print(f"Copied following to {self.destination}:")
+            actions_count = len(self.actions)
+            if actions_count > 0:
+                print(f"Copied {actions_count} metainfo files to {self.destination}:")
                 for action in self.actions:
                     if action.torrent_id in self.copied:
                         print(f"Copied {action.name} from {action.source}")
                     if action.torrent_id in self.copy_failure:
                         error = self.copy_failure[action.torrent_id]
                         print(f"Failed to move {action.source} because: {error}")
+            else:
+                print(f"No metainfo files to move")
 
 
 def create_archive_actions(
