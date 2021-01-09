@@ -1,5 +1,3 @@
-**This is still under active development - use at your own risk!**
-
 Clutchless
 ----------
 
