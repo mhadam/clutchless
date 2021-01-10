@@ -2,6 +2,8 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Mapping, MutableMapping, Set, MutableSequence, Optional, Sequence
 
+from colorama import Fore
+
 from clutchless.command.command import Command, CommandOutput
 from clutchless.external.filesystem import Filesystem, CopyError
 from clutchless.external.result import QueryResult
@@ -41,10 +43,16 @@ class ArchiveOutput(CommandOutput):
                 print(f"Copied {actions_count} metainfo files to {self.destination}:")
                 for action in self.actions:
                     if action.torrent_id in self.copied:
-                        print(f"Copied {action.name} from {action.source}")
+                        print(
+                            Fore.GREEN
+                            + f"\N{check mark} {action.name} from {action.source}"
+                        )
                     if action.torrent_id in self.copy_failure:
                         error = self.copy_failure[action.torrent_id]
-                        print(f"Failed to move {action.source} because: {error}")
+                        print(
+                            Fore.RED
+                            + f"\N{ballot x} failed to move {action.source} because: {error}"
+                        )
             else:
                 print(f"No metainfo files to move")
 

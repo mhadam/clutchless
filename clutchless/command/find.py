@@ -1,15 +1,12 @@
-import asyncio
 import logging
-import signal
-from typing import Set, MutableSequence
+from typing import Set
 
-from colorama import init, deinit, Fore
+from colorama import Fore
 
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.metainfo import TorrentData
 from clutchless.service.torrent import FindService
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +27,16 @@ class FindOutput(CommandOutput):
         print(Fore.RED + f"\N{ballot x} {torrent.name}")
 
     def display(self):
-        init()
         matches_count = len(self.found)
         if matches_count > 0:
-            print(Fore.LIGHTWHITE_EX + f"Found {matches_count} torrents:")
+            print(f"Found {matches_count} torrents:")
             for linked in self.found:
                 self.print_found(linked)
         misses_count = len(self.missing)
         if misses_count > 0:
-            print(Fore.LIGHTWHITE_EX + f"Did not find {misses_count} torrents:")
+            print(f"Did not find {misses_count} torrents:")
             for file in self.missing:
                 self.print_missing(file)
-        deinit()
 
     def dry_run_display(self):
         raise NotImplementedError

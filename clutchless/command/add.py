@@ -9,7 +9,6 @@ from clutchless.external.filesystem import Filesystem
 from clutchless.external.metainfo import TorrentData
 from clutchless.service.torrent import AddService, FindService
 
-
 logger = logging.getLogger(__name__)
 
 

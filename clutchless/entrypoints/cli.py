@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 from typing import Mapping, Any
 
+from colorama import init, deinit
 from docopt import docopt
 
 from clutchless.command.command import CommandOutput
@@ -33,7 +34,6 @@ from clutchless.configuration import CommandCreator, command_factories
 from clutchless.external.filesystem import DefaultFilesystem, SingleDirectoryFileLocator
 from clutchless.external.metainfo import DefaultMetainfoReader
 from clutchless.external.transmission import clutch_factory, ClutchApi
-
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,9 @@ def main():
 
         dependencies = get_dependencies(args)
         application = Application(args, dependencies)
+        init(autoreset=True)
         application.run()
+        deinit()
     except Exception as e:
         logging.exception(str(e))
         logging.debug("", exc_info=True)

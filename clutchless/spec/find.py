@@ -9,7 +9,6 @@ Arguments:
 Options:
     -d <data> ...   Folder(s) to search for data that belongs to the specified metainfo files.
 """
-import asyncio
 from pathlib import Path
 from typing import Mapping, Set
 

@@ -12,12 +12,10 @@ from typing import (
     Optional,
     Tuple,
     Deque,
-    AsyncIterable,
     AsyncGenerator,
 )
 
 from clutchless.stream import combine
-
 
 logger = logging.getLogger(__name__)
 
