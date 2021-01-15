@@ -58,6 +58,7 @@ The ``-h`` flag can be used to bring up documentation, e.g. ``clutchless -h``::
         archive     Copy metainfo files from Transmission for backup.
         organize    Migrate torrents to a new location, sorting them into separate folders for each tracker.
         prune       Clean up things in different contexts (files, torrents, etc.).
+        dedupe      Delete duplicate metainfo files from paths.
 
     See 'clutchless help <command>' for more information on a specific command.
 
@@ -96,3 +97,7 @@ Remove metainfo files from some folders (``folder1``, ``folder2``) that are foun
 To associate torrent to their matching data found in any number of folders (in this case just two)::
 
     clutchless link ~/data_folder_1 ~/data_folder_2
+
+To delete duplicate metainfo files in ``~/folder1``::
+
+    clutchless dedupe ~/folder1

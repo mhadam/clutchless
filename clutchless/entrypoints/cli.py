@@ -15,6 +15,7 @@ The available clutchless commands are:
     archive     Copy metainfo files from Transmission for backup.
     organize    Migrate torrents to a new location, sorting them into separate folders for each tracker.
     prune       Clean up things in different contexts (files, torrents, etc.).
+    dedupe      Delete duplicate metainfo files from paths.
 
 See 'clutchless help <command>' for more information on a specific command.
 
@@ -112,12 +113,12 @@ def main():
         verbosity = parse_logging_level(args)
         level = get_logging_level(verbosity)
         logging.basicConfig(level=level)
-        logger = logging.getLogger()
-        logger.handlers = []
+        app_logger = logging.getLogger()
+        app_logger.handlers = []
 
         if verbosity > 0:
             handler = get_file_handler()
-            logger.addHandler(handler)
+            app_logger.addHandler(handler)
 
         dependencies = get_dependencies(args)
         application = Application(args, dependencies)

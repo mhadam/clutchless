@@ -11,6 +11,7 @@ from clutchless.command.command import (
     CommandFactoryResult,
     Command,
 )
+from clutchless.command.dedupe import DedupeCommand
 from clutchless.command.find import FindCommand
 from clutchless.command.link import LinkCommand, ListLinkCommand
 from clutchless.command.organize import (
@@ -173,6 +174,20 @@ def archive_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactor
     return MissingCommand(), archive_args
 
 
+def dedupe_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
+    fs = dependencies["fs"]
+    reader = dependencies["metainfo_reader"]
+    # parse
+    from clutchless.spec import dedupe as dedupe_command
+
+    dedupe_args = docopt(doc=dedupe_command.__doc__, argv=argv)
+    raw_folders = dedupe_args.get("<metainfo>")
+    files: Set[MetainfoFile] = collect_metainfo_files(reader, fs, raw_folders)
+    if files:
+        return DedupeCommand(fs, files), dedupe_args
+    return MissingCommand(), dedupe_args
+
+
 def prune_folder_factory(
     argv: Sequence[str], dependencies: Mapping
 ) -> CommandFactoryResult:
@@ -232,6 +247,7 @@ command_factories: DefaultDict[Any, CommandFactory] = defaultdict(
         "organize": organize_factory,
         "archive": archive_factory,
         "prune": prune_factory,
+        "dedupe": dedupe_factory,
     },
 )
 

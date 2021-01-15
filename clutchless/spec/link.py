@@ -1,7 +1,7 @@
 """ For torrents with missing data in Transmission, find the data and set the found location.
 
 Usage:
-    clutchless link [--dry-run] <data> ...
+    clutchless link [--dry-run] (<data> ...)
     clutchless link --list
 
 Arguments:
