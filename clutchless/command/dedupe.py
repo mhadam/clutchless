@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Mapping, MutableMapping
+from typing import Set, Mapping, MutableMapping, Sequence
 
 from clutchless.command.command import CommandOutput, Command
 from clutchless.domain.torrent import MetainfoFile
@@ -36,16 +36,16 @@ class DedupeOutput(CommandOutput):
         if duplicate_count > 0:
             print(f"Would delete {duplicate_count} duplicate files:")
             for (file, dupes) in self.deleted_paths_by_file.items():
-                print(f"duplicates of {file.name}:")
+                print(f"\N{triangular bullet} {file.name}:")
                 for dupe in dupes:
-                    print(f"{dupe}")
+                    print(f"\N{hyphen bullet} {dupe}")
         else:
             print(f"No duplicates found")
 
 
 @dataclass
 class DedupeCommand(Command):
-    def __init__(self, fs: Filesystem, files: Set[MetainfoFile]):
+    def __init__(self, fs: Filesystem, files: Sequence[MetainfoFile]):
         self.fs = fs
         self.files = files
 
@@ -60,9 +60,11 @@ class DedupeCommand(Command):
             self.fs.remove(path)
 
     def dry_run(self) -> CommandOutput:
+        logger.debug(f"{[file.name for file in self.files]}")
         deleted_paths_by_file: MutableMapping[MetainfoFile, Set[Path]] = {}
         remaining_path_by_file: MutableMapping[MetainfoFile, Path] = {}
         paths_by_file = self._join_paths()
+        logger.debug(f"paths_by_file {paths_by_file}")
         for (metainfo_file, paths) in paths_by_file.items():
             remaining_path_by_file[metainfo_file] = paths.pop()
             if paths:

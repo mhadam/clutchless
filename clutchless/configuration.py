@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from pathlib import Path
 from typing import Sequence, Set, Mapping, Any, DefaultDict, Callable, Iterable
@@ -49,6 +50,9 @@ from clutchless.service.torrent import (
     LinkOnlyAddService,
 )
 from clutchless.spec.find import FindArgs
+
+
+logger = logging.getLogger(__name__)
 
 
 def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
@@ -182,8 +186,11 @@ def dedupe_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactory
 
     dedupe_args = docopt(doc=dedupe_command.__doc__, argv=argv)
     raw_folders = dedupe_args.get("<metainfo>")
-    files: Set[MetainfoFile] = collect_metainfo_files(reader, fs, raw_folders)
+    files: Sequence[MetainfoFile] = list(
+        collect_metainfo_files(reader, fs, raw_folders)
+    )
     if files:
+        logger.debug(f"dedupe factory files passed to command {files}")
         return DedupeCommand(fs, files), dedupe_args
     return MissingCommand(), dedupe_args
 

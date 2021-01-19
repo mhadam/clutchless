@@ -2,7 +2,7 @@ import asyncio
 import logging
 import signal
 from pathlib import Path
-from typing import Iterable, Set, Tuple, AsyncGenerator
+from typing import Iterable, Set, Tuple, AsyncGenerator, Sequence
 
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import (
@@ -147,12 +147,12 @@ def collect_metainfo_paths(
 
 def _get_metainfo_files(
     reader: MetainfoReader, paths: Iterable[Path]
-) -> Set[MetainfoFile]:
-    return {reader.from_path(path) for path in paths}
+) -> Iterable[MetainfoFile]:
+    return (reader.from_path(path) for path in paths)
 
 
 def collect_metainfo_files(
     reader: MetainfoReader, fs: Filesystem, raw_torrent_paths: Iterable[str]
-) -> Set[MetainfoFile]:
+) -> Iterable[MetainfoFile]:
     paths = collect_metainfo_paths(fs, raw_torrent_paths)
     return _get_metainfo_files(reader, paths)

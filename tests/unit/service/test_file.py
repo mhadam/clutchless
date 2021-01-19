@@ -115,7 +115,7 @@ def test_collect_metainfo_files_with_timeout(mocker: MockerFixture):
 
     result = collect_metainfo_files(reader, fs, paths)
 
-    assert result == {
+    assert set(result) == {
         from_path(Path("/some_path/child1/file2.torrent")),
         from_path(Path("/another_path/file.torrent")),
     }
