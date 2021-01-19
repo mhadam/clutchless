@@ -1,6 +1,6 @@
 import itertools
 from pathlib import Path
-from typing import Mapping, Sequence, Set, Union, MutableMapping, Protocol, cast
+from typing import Mapping, Sequence, Set, Union, MutableMapping, Protocol, cast, Tuple
 
 from clutch import Client
 from clutch.network.rpc.message import Response
@@ -53,6 +53,11 @@ class TransmissionApi(Protocol):
         raise NotImplementedError
 
     def add_torrent_with_files(self, file: Path, download_dir: Path) -> CommandResult:
+        raise NotImplementedError
+
+    def get_errors_by_id(
+        self, ids: Set[int]
+    ) -> QueryResult[Mapping[int, Tuple[int, str]]]:
         raise NotImplementedError
 
     def get_torrent_name_by_id(self, ids: Set[int]) -> QueryResult[Mapping[int, str]]:
@@ -111,6 +116,24 @@ class TransmissionApi(Protocol):
 class ClutchApi(TransmissionApi):
     def __init__(self, client: Client):
         self.client = client
+
+    def get_errors_by_id(
+        self, ids: Set[int]
+    ) -> QueryResult[Mapping[int, Tuple[int, str]]]:
+        response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
+            fields={"id", "error", "error_string"}
+        )
+        arguments = cast(TorrentAccessorResponse, response.arguments)
+        torrents: Sequence[TorrentAccessorObject] = cast(
+            Sequence[TorrentAccessorObject], arguments.torrents
+        )
+        return QueryResult(
+            value={
+                torrent.id: (torrent.error, torrent.error_string)
+                for torrent in torrents
+                if torrent.error != 0
+            }
+        )
 
     def add_torrent(self, file: Path) -> CommandResult:
         arguments: TorrentAddArguments = {
@@ -362,6 +385,11 @@ class ClutchApi(TransmissionApi):
 
 
 class DryRunClient(TransmissionApi):
+    def get_errors_by_id(
+        self, ids: Set[int]
+    ) -> QueryResult[Mapping[int, Tuple[int, str]]]:
+        pass
+
     def add_torrent(self, file: Path) -> CommandResult:
         pass
 
