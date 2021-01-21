@@ -145,7 +145,7 @@ def handle_action(
     try:
         if action.client_error:
             error_code = action.client_error[0]
-            if error_code == 2:
+            if error_code == 1 or error_code == 2:
                 fs.create_dir(archive_path / "tracker_error")
                 fs.copy(action.source, archive_path / "tracker_error")
             elif error_code == 3:
@@ -263,10 +263,11 @@ class ErrorArchiveCommand(Command):
         result: Set[ArchiveAction] = set()
         for action in actions:
             new_filename = torrent_file_by_id[action.torrent_id].name
-            if action.client_error:
-                if action.client_error[0] == 2:
+            if action.client_error:  # todo: try-except this
+                code = action.client_error[0]
+                if code == 1 or code == 2:
                     error_folder = "tracker_error"
-                elif action.client_error[0] == 3:
+                elif code == 3:
                     error_folder = "local_error"
                 else:
                     code, message = action.client_error
