@@ -177,7 +177,7 @@ def sort_errors(
     for action in actions:
         try:
             error_code = action.client_error[0]
-            if error_code == 2:
+            if error_code == 1 or error_code == 2:
                 tracker_errors.add(action)
             elif error_code == 3:
                 local_errors.add(action)
