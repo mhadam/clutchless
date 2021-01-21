@@ -6,7 +6,7 @@ from typing import Sequence, Set, Mapping, Any, DefaultDict, Callable, Iterable
 from docopt import docopt
 
 from clutchless.command.add import AddCommand, LinkingAddCommand
-from clutchless.command.archive import ArchiveCommand
+from clutchless.command.archive import ArchiveCommand, ErrorArchiveCommand
 from clutchless.command.command import (
     CommandFactory,
     CommandFactoryResult,
@@ -173,8 +173,12 @@ def archive_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactor
 
     archive_args = docopt(doc=archive_command.__doc__, argv=argv)
     location = Path(archive_args.get("<destination>"))
+    errors_option = archive_args.get("--errors")
     if location:
-        return ArchiveCommand(location, fs, client), archive_args
+        if errors_option:
+            return ErrorArchiveCommand(location, fs, client), archive_args
+        else:
+            return ArchiveCommand(location, fs, client), archive_args
     return MissingCommand(), archive_args
 
 

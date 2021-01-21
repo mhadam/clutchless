@@ -25,7 +25,6 @@ class ArchiveAction:
 class ArchiveOutput(CommandOutput):
     # set in creation
     destination: Path
-    actions: Set[ArchiveAction] = field(default_factory=set)
     # set conditionally in creation
     query_failure: Optional[str] = None
     # set during action handling
@@ -128,8 +127,10 @@ class ArchiveOutput(CommandOutput):
 def create_archive_actions(
     torrent_file_by_id: Mapping[int, Path],
     torrent_name_by_id: Mapping[int, str],
-    errors_by_id: Mapping[int, Tuple[int, str]],
+    errors_by_id: Optional[Mapping[int, Tuple[int, str]]] = None,
 ) -> Set[ArchiveAction]:
+    if errors_by_id is None:
+        errors_by_id = {}
     result: Set[ArchiveAction] = set()
     for (torrent_id, source) in torrent_file_by_id.items():
         name = torrent_name_by_id[torrent_id]
@@ -190,15 +191,16 @@ def handle_data(
     archive_path: Path,
     torrent_file_by_id: Mapping[int, Path],
     torrent_name_by_id: Mapping[int, str],
-    errors_by_id: Mapping[int, Tuple[int, str]],
+    errors_by_id: Optional[Mapping[int, Tuple[int, str]]] = None,
 ) -> ArchiveOutput:
+    if errors_by_id is None:
+        errors_by_id = {}
     actions = create_archive_actions(
         torrent_file_by_id, torrent_name_by_id, errors_by_id
     )
     local_errors, tracker_errors = sort_errors(actions)
     output = ArchiveOutput(
         destination=archive_path,
-        actions=actions,
         local_errors=local_errors,
         tracker_errors=tracker_errors,
     )
@@ -207,7 +209,7 @@ def handle_data(
     return output
 
 
-class ArchiveCommand(Command):
+class ErrorArchiveCommand(Command):
     def __init__(self, archive_path: Path, fs: Filesystem, client: TransmissionApi):
         self.client = client
         self.fs = fs
@@ -296,9 +298,74 @@ class ArchiveCommand(Command):
         local_errors, tracker_errors = sort_errors(actions)
         return ArchiveOutput(
             self.archive_path,
-            actions,
             copied=copied,
             tracker_errors=tracker_errors,
             local_errors=local_errors,
+            already_exists=already_exists,
+        )
+
+
+class ArchiveCommand(Command):
+    def __init__(self, archive_path: Path, fs: Filesystem, client: TransmissionApi):
+        self.client = client
+        self.fs = fs
+        self.archive_path = archive_path
+
+    def __get_torrent_file_by_id(self) -> Mapping[int, Path]:
+        query_result: QueryResult[
+            Mapping[int, Path]
+        ] = self.client.get_torrent_files_by_id()
+        if query_result.success:
+            return query_result.value or dict()
+        raise RuntimeError("query failed: get_torrent_files_by_id")
+
+    def __get_torrent_name_by_id(self, ids: Set[int]) -> Mapping[int, str]:
+        query_result: QueryResult[
+            Mapping[int, str]
+        ] = self.client.get_torrent_name_by_id(ids)
+        if query_result.success:
+            return query_result.value or dict()
+        raise RuntimeError("query failed: get_torrent_name_by_id")
+
+    def run(self) -> ArchiveOutput:
+        try:
+            torrent_file_by_id = self.__get_torrent_file_by_id()
+            ids = set(torrent_file_by_id.keys())
+            torrent_name_by_id = self.__get_torrent_name_by_id(ids)
+        except RuntimeError as e:
+            return ArchiveOutput(self.archive_path, query_failure=str(e))
+        self.fs.create_dir(self.archive_path)
+        return handle_data(
+            self.fs,
+            self.archive_path,
+            torrent_file_by_id,
+            torrent_name_by_id,
+        )
+
+    def _get_already_exists(
+        self, actions: Set[ArchiveAction], torrent_file_by_id: Mapping[int, Path]
+    ) -> Set[ArchiveAction]:
+        result: Set[ArchiveAction] = set()
+        for action in actions:
+            new_filename = torrent_file_by_id[action.torrent_id].name
+            new_path = self.archive_path / new_filename
+            logger.debug(f"checking for {new_path}")
+            if self.fs.exists(new_path):
+                result.add(action)
+        return result
+
+    def dry_run(self) -> CommandOutput:
+        try:
+            torrent_file_by_id = self.__get_torrent_file_by_id()
+            ids = set(torrent_file_by_id.keys())
+            torrent_name_by_id = self.__get_torrent_name_by_id(ids)
+        except RuntimeError as e:
+            return ArchiveOutput(self.archive_path, query_failure=str(e))
+        actions = create_archive_actions(torrent_file_by_id, torrent_name_by_id)
+        already_exists = self._get_already_exists(actions, torrent_file_by_id)
+        copied = actions - already_exists
+        return ArchiveOutput(
+            self.archive_path,
+            copied=copied,
             already_exists=already_exists,
         )
