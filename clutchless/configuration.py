@@ -70,6 +70,7 @@ def rename_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactory
     command = RenameCommand(fs, files)
     return command, args
 
+
 def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
     client = dependencies["client"]
     reader: MetainfoReader = dependencies["metainfo_reader"]

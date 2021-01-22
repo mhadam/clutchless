@@ -52,6 +52,6 @@ class RenameCommand(Command):
 
     def run(self) -> CommandOutput:
         new_names_by_file = self.get_new_names_by_file()
-        for file, new_name in new_names_by_file:
+        for file, new_name in new_names_by_file.items():
             self.fs.rename(file.path, new_name)
         return RenameOutput(new_names_by_file)
