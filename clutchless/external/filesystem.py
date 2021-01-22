@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 class Filesystem(Protocol):
+    def rename(self, path: Path, name: str):
+        raise NotImplementedError
+
     def touch(self, path: Path):
         raise NotImplementedError
 
@@ -59,6 +62,9 @@ class CopyError(Exception):
 class DefaultFilesystem(Filesystem):
     def __init__(self):
         pass
+
+    def rename(self, path: Path, name: str):
+        path.rename(name)
 
     def touch(self, path: Path):
         path.touch(exist_ok=True)

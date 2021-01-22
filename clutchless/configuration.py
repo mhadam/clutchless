@@ -22,6 +22,7 @@ from clutchless.command.organize import (
 from clutchless.command.other import MissingCommand, InvalidCommand
 from clutchless.command.prune.client import PruneClientCommand
 from clutchless.command.prune.folder import PruneFolderCommand
+from clutchless.command.rename import RenameCommand
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import (
     Filesystem,
@@ -54,6 +55,20 @@ from clutchless.spec.find import FindArgs
 
 logger = logging.getLogger(__name__)
 
+
+def rename_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
+    fs: Filesystem = dependencies["fs"]
+    reader: MetainfoReader = dependencies["metainfo_reader"]
+
+    from clutchless.spec import rename as rename_command
+
+    args = docopt(doc=rename_command.__doc__, argv=argv)
+
+    raw_paths = args.get("<path>")
+    files: Iterable[MetainfoFile] = collect_metainfo_files(reader, fs, raw_paths)
+
+    command = RenameCommand(fs, files)
+    return command, args
 
 def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
     client = dependencies["client"]
@@ -259,6 +274,7 @@ command_factories: DefaultDict[Any, CommandFactory] = defaultdict(
         "archive": archive_factory,
         "prune": prune_factory,
         "dedupe": dedupe_factory,
+        "rename": rename_factory,
     },
 )
 

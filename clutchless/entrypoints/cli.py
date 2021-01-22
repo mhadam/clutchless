@@ -16,6 +16,7 @@ The available clutchless commands are:
     organize    Migrate torrents to a new location, sorting them into separate folders for each tracker.
     prune       Clean up things in different contexts (files, torrents, etc.).
     dedupe      Delete duplicate metainfo files from paths.
+    rename      Changes the name of metainfo files based on metainfo (torrent name and info hash).
 
 See 'clutchless help <command>' for more information on a specific command.
 
