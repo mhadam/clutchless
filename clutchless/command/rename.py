@@ -1,9 +1,13 @@
+import logging
 from dataclasses import dataclass, field
 from typing import Iterable, Mapping, MutableMapping
 
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -53,5 +57,6 @@ class RenameCommand(Command):
     def run(self) -> CommandOutput:
         new_names_by_file = self.get_new_names_by_file()
         for file, new_name in new_names_by_file.items():
+            logger.debug(f"renaming {file.path} to {new_name}")
             self.fs.rename(file.path, new_name)
         return RenameOutput(new_names_by_file)

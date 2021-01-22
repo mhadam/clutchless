@@ -64,7 +64,7 @@ class DefaultFilesystem(Filesystem):
         pass
 
     def rename(self, path: Path, name: str):
-        path.rename(name)
+        path.rename(path.parent / name)
 
     def touch(self, path: Path):
         path.touch(exist_ok=True)
