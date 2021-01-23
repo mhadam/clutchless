@@ -76,9 +76,9 @@ def test_metainfo_unequal():
 
 
 def test_metainfo_hash():
-    file = MetainfoFile({"info_hash": "not_equal"})
+    file = MetainfoFile({"info_hash": "not_equal"}, path=Path(""))
 
-    assert hash(file) == hash("not_equal")
+    assert hash(file) == hash(("not_equal", Path("")))
 
 
 def test_metainfo_str_repr():

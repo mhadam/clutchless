@@ -1,7 +1,8 @@
 import logging
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Mapping, MutableMapping
+from typing import Iterable, Mapping, MutableMapping, Set
 
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
@@ -12,16 +13,24 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RenameOutput(CommandOutput):
-    new_names_by_file: Mapping[MetainfoFile, str] = field(default_factory=dict)
+    actionable: Mapping[MetainfoFile, str] = field(default_factory=dict)
     already_exists: Mapping[MetainfoFile, Path] = field(default=dict)
+    selected: Mapping[MetainfoFile, Set[MetainfoFile]] = field(default=dict)
 
     def dry_run_display(self):
-        names_count = len(self.new_names_by_file)
+        actionable_count = len(self.actionable)
         already_exists_count = len(self.already_exists)
-        if names_count + already_exists_count > 0:
-            if names_count > 0:
-                print(f"Found {names_count} metainfo files to rename:")
-                for file, new_name in self.new_names_by_file.items():
+        selected_count = len(self.selected)
+        if actionable_count + already_exists_count + selected_count > 0:
+            if selected_count > 0:
+                print(f"Found {selected_count} clashing renames:")
+                for file, others in self.selected.items():
+                    print(f"\N{triangular bullet} {file.name} has dupes:")
+                    for other in others:
+                        print(f"\N{hyphen bullet} {other}")
+            if actionable_count > 0:
+                print(f"Found {actionable_count} metainfo files to rename:")
+                for file, new_name in self.actionable.items():
                     print(f"{file.path} to {new_name}")
             if already_exists_count > 0:
                 print(
@@ -33,12 +42,19 @@ class RenameOutput(CommandOutput):
             print("No files found to rename.")
 
     def display(self):
-        names_count = len(self.new_names_by_file)
+        actionable_count = len(self.actionable)
         already_exists_count = len(self.already_exists)
-        if names_count + already_exists_count > 0:
-            if names_count > 0:
-                print(f"Renamed {names_count} metainfo files:")
-                for file, new_name in self.new_names_by_file.items():
+        selected_count = len(self.selected)
+        if actionable_count + already_exists_count + selected_count > 0:
+            if selected_count > 0:
+                print(f"Found {selected_count} clashing renames:")
+                for file, others in self.selected.items():
+                    print(f"\N{triangular bullet} {file.name} has dupes:")
+                    for other in others:
+                        print(f"\N{hyphen bullet} {other}")
+            if actionable_count > 0:
+                print(f"Renamed {actionable_count} metainfo files:")
+                for file, new_name in self.actionable.items():
                     print(f"{file.path} to {new_name}")
             if already_exists_count > 0:
                 print(
@@ -52,6 +68,43 @@ class RenameOutput(CommandOutput):
 
 def get_new_name(file: MetainfoFile) -> str:
     return file.name + "." + file.info_hash[:16] + ".torrent"
+
+
+def get_competing_renames(
+    new_names_by_file: Mapping[MetainfoFile, str]
+) -> Mapping[Path, Set[MetainfoFile]]:
+    seen = defaultdict(set)
+    for file, name in new_names_by_file.items():
+        new_path = file.path.parent / name
+        seen[new_path].add(file)
+    return {path: files for path, files in seen.items() if len(files) > 1}
+
+
+def select(
+    dupes: Mapping[Path, Set[MetainfoFile]]
+) -> Mapping[MetainfoFile, Set[MetainfoFile]]:
+    # todo: how do we ensure that this doesn't change? is Set iteration sorted?
+    def split_first(s):
+        iterator = iter(s)
+        return next(iterator), set(iterator)
+
+    result: MutableMapping[MetainfoFile, Set[MetainfoFile]] = {}
+    for path, files in dupes.items():
+        first, others = split_first(files)
+        result[first] = others
+    return result
+
+
+def get_actionable(
+    new_names_by_file: Mapping[MetainfoFile, str],
+    already_exists: Mapping[MetainfoFile, Path],
+    selected: Mapping[MetainfoFile, Set[MetainfoFile]],
+) -> Mapping[MetainfoFile, str]:
+    return {
+        file: new_name
+        for file, new_name in new_names_by_file.items()
+        if file not in already_exists and file in selected
+    }
 
 
 class RenameCommand(Command):
@@ -77,29 +130,21 @@ class RenameCommand(Command):
                 already_exists[file] = new_file
         return already_exists
 
-    def get_actionable(
-        self,
-        new_names_by_file: Mapping[MetainfoFile, str],
-        already_exists: MutableMapping[MetainfoFile, Path],
-    ) -> MutableMapping[MetainfoFile, str]:
-        return {
-            file: new_name
-            for file, new_name in new_names_by_file.items()
-            if file not in already_exists
-        }
-
     def dry_run(self) -> CommandOutput:
         new_names_by_file = self.get_new_names_by_file()
         already_exists = self.get_already_exists(new_names_by_file)
-        actionable = self.get_actionable(new_names_by_file, already_exists)
-        return RenameOutput(actionable, already_exists)
+        competing = get_competing_renames(new_names_by_file)
+        selected = select(competing)
+        actionable = get_actionable(new_names_by_file, already_exists, selected)
+        return RenameOutput(actionable, already_exists, selected)
 
     def run(self) -> CommandOutput:
         new_names_by_file = self.get_new_names_by_file()
         already_exists = self.get_already_exists(new_names_by_file)
-        actionable = self.get_actionable(new_names_by_file, already_exists)
-        for file, new_name in new_names_by_file.items():
-            if file not in already_exists:
-                logger.debug(f"renaming {file.path} to {new_name}")
-                self.fs.rename(file.path, new_name)
-        return RenameOutput(actionable, already_exists)
+        competing = get_competing_renames(new_names_by_file)
+        selected = select(competing)
+        actionable = get_actionable(new_names_by_file, already_exists, selected)
+        for file, new_name in actionable.items():
+            logger.debug(f"renaming {file.path} to {new_name}")
+            self.fs.rename(file.path, new_name)
+        return RenameOutput(actionable, already_exists, selected)

@@ -92,4 +92,4 @@ class MetainfoFile:
             return False
 
     def __hash__(self):
-        return hash(self.info_hash)
+        return hash((self.info_hash, self.path))
