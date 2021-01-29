@@ -76,12 +76,12 @@ def _sort_into_dirs_and_files(
     dirs: Set[Path] = set()
     files: Set[Path] = set()
     for path in paths:
+        if not fs.exists(path):
+            raise ValueError(f"{path} does not exist", path)
         if fs.is_file(path):
             files.add(path)
         elif fs.is_directory(path):
             dirs.add(path)
-        else:
-            raise ValueError(f"{path} is a weird path", path)
     return dirs, files
 
 

@@ -80,16 +80,13 @@ class MetainfoFile:
         return f"{self.name}"
 
     def __eq__(self, other):
-        """
-        There's an assumption about temporality here - namely that a file won't be updated at some point.
-
-        Creating a MetainfoFile from the same path, that yielded the same hash_string but different metainfo would be an
-        issue.
-        """
         if isinstance(other, MetainfoFile):
-            return other.info_hash == self.info_hash
+            return other.info_hash == self.info_hash and other.path == self.path
         else:
             return False
 
     def __hash__(self):
         return hash((self.info_hash, self.path))
+
+    def __lt__(self, other):
+        return self.path < other.path

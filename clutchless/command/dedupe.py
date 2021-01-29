@@ -13,32 +13,34 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class DedupeOutput(CommandOutput):
-    deleted_paths_by_file: Mapping[MetainfoFile, Set[Path]] = field(default_factory=set)
-    remaining_path_by_file: Mapping[MetainfoFile, Path] = field(default_factory=map)
+    deleted_files_by_hash: Mapping[str, Set[MetainfoFile]] = field(default_factory=set)
+    remaining_files: Set[MetainfoFile] = field(default_factory=map)
 
     def display(self):
         duplicate_count = sum(
-            [len(dupes) for dupes in self.deleted_paths_by_file.values()]
+            [len(dupes) for _, dupes in self.deleted_files_by_hash.items()]
         )
         if duplicate_count > 0:
             print(f"Deleted {duplicate_count} duplicate files:")
-            for (file, dupes) in self.deleted_paths_by_file.items():
-                print(f"duplicates of {file.name}:")
-                for dupe in dupes:
-                    print(f"{dupe}")
+            for (info_hash, files) in self.deleted_files_by_hash.items():
+                first_file: MetainfoFile = next(iter(files))
+                print(f"\N{triangular bullet} {first_file.name}:")
+                for file in files:
+                    print(f"\N{hyphen bullet} {file.path}")
         else:
             print(f"No duplicates found")
 
     def dry_run_display(self):
         duplicate_count = sum(
-            [len(dupes) for dupes in self.deleted_paths_by_file.values()]
+            [len(dupes) for _, dupes in self.deleted_files_by_hash.items()]
         )
         if duplicate_count > 0:
             print(f"Would delete {duplicate_count} duplicate files:")
-            for (file, dupes) in self.deleted_paths_by_file.items():
-                print(f"\N{triangular bullet} {file.name}:")
-                for dupe in dupes:
-                    print(f"\N{hyphen bullet} {dupe}")
+            for (info_hash, files) in self.deleted_files_by_hash.items():
+                first_file: MetainfoFile = next(iter(files))
+                print(f"\N{triangular bullet} {first_file.name}:")
+                for file in files:
+                    print(f"\N{hyphen bullet} {file.path}")
         else:
             print(f"No duplicates found")
 
@@ -49,35 +51,37 @@ class DedupeCommand(Command):
         self.fs = fs
         self.files = files
 
-    def _join_paths(self) -> Mapping[MetainfoFile, Set[Path]]:
+    def _join_paths(self) -> Mapping[str, Set[MetainfoFile]]:
         result = defaultdict(set)
         for file in self.files:
-            result[file].add(file.path)
+            result[file.info_hash].add(file)
         return result
 
-    def _delete(self, paths: Set[Path]):
-        for path in paths:
-            self.fs.remove(path)
+    def _delete(self, files: Set[MetainfoFile]):
+        for file in files:
+            self.fs.remove(file.path)
 
     def dry_run(self) -> CommandOutput:
-        logger.debug(f"{[file.name for file in self.files]}")
-        deleted_paths_by_file: MutableMapping[MetainfoFile, Set[Path]] = {}
-        remaining_path_by_file: MutableMapping[MetainfoFile, Path] = {}
+        for file in self.files:
+            logger.debug(f"{file.name}")
+        deleted_files_by_hash: MutableMapping[str, Set[MetainfoFile]] = {}
+        remaining_files: Set[MetainfoFile] = set()
         paths_by_file = self._join_paths()
-        logger.debug(f"paths_by_file {paths_by_file}")
-        for (metainfo_file, paths) in paths_by_file.items():
-            remaining_path_by_file[metainfo_file] = paths.pop()
-            if paths:
-                deleted_paths_by_file[metainfo_file] = paths
-        return DedupeOutput(deleted_paths_by_file, remaining_path_by_file)
+        for (info_hash, files) in paths_by_file.items():
+            logger.debug(f"{info_hash} and files {files}")
+            remaining_files.add(files.pop())
+            if files:
+                deleted_files_by_hash[info_hash] = files
+        return DedupeOutput(deleted_files_by_hash, remaining_files)
 
     def run(self) -> CommandOutput:
-        deleted_paths_by_file: MutableMapping[MetainfoFile, Set[Path]] = {}
-        remaining_path_by_file: MutableMapping[MetainfoFile, Path] = {}
+        deleted_files_by_hash: MutableMapping[str, Set[MetainfoFile]] = {}
+        remaining_files: Set[MetainfoFile] = set()
         paths_by_file = self._join_paths()
-        for (metainfo_file, paths) in paths_by_file.items():
-            remaining_path_by_file[metainfo_file] = paths.pop()
-            if paths:
-                self._delete(paths)
-                deleted_paths_by_file[metainfo_file] = paths
-        return DedupeOutput(deleted_paths_by_file, remaining_path_by_file)
+        for (info_hash, files) in paths_by_file.items():
+            logger.debug(f"{info_hash} and files {files}")
+            remaining_files.add(files.pop())
+            if files:
+                self._delete(files)
+                deleted_files_by_hash[info_hash] = files
+        return DedupeOutput(deleted_files_by_hash, remaining_files)

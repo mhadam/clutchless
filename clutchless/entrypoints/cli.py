@@ -52,9 +52,15 @@ class Application:
         except asyncio.CancelledError:
             print("Cancelled task")
             return
+        except ValueError as e:
+            found_does_not_exist = next(
+                value for value in e.args if "does not exist" in value
+            )
+            if found_does_not_exist:
+                print(found_does_not_exist)
+            return
         except Exception as e:
             logger.warning(e, exc_info=True)
-            print(e)
             return
         is_dry_run = subcommand_args.get("--dry-run")
         try:
@@ -128,7 +134,6 @@ def main():
         deinit()
     except Exception as e:
         logging.exception(str(e))
-        logging.debug("", exc_info=True)
         try:
             sys.exit(e.errno)
         except AttributeError:
