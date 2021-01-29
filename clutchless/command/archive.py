@@ -18,7 +18,7 @@ class ArchiveAction:
     torrent_id: int
     name: str
     source: Path
-    client_error: Optional[Tuple[int, str]]
+    client_error: Optional[Tuple[int, str]] = None
 
 
 @dataclass

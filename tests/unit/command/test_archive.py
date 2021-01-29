@@ -21,7 +21,7 @@ def test_create_actions():
 
     actions = create_archive_actions(torrent_file_by_id, torrent_name_by_id)
 
-    assert actions == [ArchiveAction(1, "test_name", Path("/", "test_path"))]
+    assert actions == {ArchiveAction(1, "test_name", Path("/", "test_path"))}
 
 
 def test_handle_action_success(mocker: MockerFixture):
@@ -31,7 +31,7 @@ def test_handle_action_success(mocker: MockerFixture):
 
     new_output = handle_action(fs, Path("/", "archive"), output, action)
 
-    assert new_output == ArchiveOutput(Path("/", "archive"), copied={1})
+    assert new_output == ArchiveOutput(Path("/", "archive"), copied={action})
 
 
 def test_handle_action_fail(mocker: MockerFixture):
@@ -43,7 +43,7 @@ def test_handle_action_fail(mocker: MockerFixture):
     new_output = handle_action(fs, Path("/", "archive"), output, action)
 
     assert new_output == ArchiveOutput(
-        Path("/", "archive"), copy_failure={1: "test_error"}
+        Path("/", "archive"), copy_failure={action: "test_error"}
     )
 
 
@@ -57,8 +57,7 @@ def test_archive_success(mocker: MockerFixture):
 
     result: ArchiveOutput = command.run()
 
-    assert result.copied == {1}
-    assert result.actions == [ArchiveAction(1, "test_name", Path("/", "file_1"))]
+    assert result.copied == {ArchiveAction(1, "test_name", Path("/", "file_1"))}
     fs.create_dir.assert_called_once_with(Path("/", "test_path"))
     fs.copy.assert_called_once_with(Path("/", "file_1"), Path("/", "test_path"))
 
