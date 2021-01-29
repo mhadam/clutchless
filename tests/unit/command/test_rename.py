@@ -75,6 +75,5 @@ def test_rename_command_dry_run():
 
     assert output.new_name_by_existing_file == {
         selected: "some_name.arbitrary.torrent",
-        other_dupe: "some_name.arbitrary.torrent",
     }
     assert output.new_name_by_actionable_file == {}
