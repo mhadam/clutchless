@@ -1,0 +1,8 @@
+[run]
+branch = True
+
+[report]
+sort = miss
+
+[html]
+directory = coverage_html_report
