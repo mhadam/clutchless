@@ -24,6 +24,10 @@ Clutchless
 .. image:: https://coveralls.io/repos/github/mhadam/clutchless/badge.svg?branch=develop
     :target: https://coveralls.io/github/mhadam/clutchless?branch=develop
 
+Other links
+===========
+
+* `Developer documentation`_
 
 Support
 =======
@@ -101,3 +105,9 @@ To associate torrent to their matching data found in any number of folders (in t
 To delete duplicate metainfo files in ``~/folder1``::
 
     clutchless dedupe ~/folder1
+
+To rename all the metainfo files in ``~/folder1`` according to metainfo (format: ``torrent_name.hash.torrent``)::
+
+    clutchless rename ~/folder1
+
+.. _developer documentation: DEVELOPER.rst
