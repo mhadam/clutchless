@@ -283,7 +283,7 @@ class ErrorArchiveCommand(Command):
                 result.add(action)
         return result
 
-    def dry_run(self) -> CommandOutput:
+    def dry_run(self) -> ArchiveOutput:
         try:
             torrent_file_by_id = self.__get_torrent_file_by_id()
             ids = set(torrent_file_by_id.keys())

@@ -8,7 +8,7 @@ from clutchless.command.archive import (
     ArchiveOutput,
     ArchiveAction,
     create_archive_actions,
-    handle_action,
+    handle_action, ErrorArchiveCommand,
 )
 from clutchless.external.filesystem import Filesystem, CopyError
 from clutchless.external.result import QueryResult
@@ -90,6 +90,36 @@ def test_archive_second_query_failure(mocker: MockerFixture):
     result: ArchiveOutput = command.run()
 
     assert result.query_failure == "query failed: get_torrent_name_by_id"
+
+
+def test_error_archive_run(mocker: MockerFixture):
+    archive_path = Path("/", "test_path")
+    fs = mocker.Mock(spec=Filesystem)
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_errors_by_id.return_value = QueryResult({1: (1, "some tracker error"), 2: (3, "some local error")})
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/some/path"), 2: Path("/some/path2")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "some_name", 2: "another_name"})
+    command = ErrorArchiveCommand(archive_path, fs, client)
+
+    result = command.run()
+
+    assert result.local_errors == {ArchiveAction(2, 'another_name', Path('/some/path2'), client_error=(3, 'some local error'))}
+    assert result.tracker_errors == {ArchiveAction(1, 'some_name', Path('/some/path'), client_error=(1, 'some tracker error'))}
+
+
+def test_error_archive_dry_run(mocker: MockerFixture):
+    archive_path = Path("/", "test_path")
+    fs = mocker.Mock(spec=Filesystem)
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_errors_by_id.return_value = QueryResult({1: (1, "some tracker error"), 2: (3, "some local error")})
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/some/path"), 2: Path("/some/path2")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "some_name", 2: "another_name"})
+    command = ErrorArchiveCommand(archive_path, fs, client)
+
+    result = command.dry_run()
+
+    assert result.local_errors == {ArchiveAction(2, 'another_name', Path('/some/path2'), client_error=(3, 'some local error'))}
+    assert result.tracker_errors == {ArchiveAction(1, 'some_name', Path('/some/path'), client_error=(1, 'some tracker error'))}
 
 
 def test_dry_run_display(mocker: MockerFixture, capsys):
