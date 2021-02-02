@@ -37,6 +37,24 @@ class MockFilesystem(Filesystem):
         self.files = files
         self.directories = directories
 
+    def rename(self, path: Path, name: str):
+        if self.exists(path):
+            if self.is_file(path):
+                self.remove(path)
+                self.files.add(path.parent / name)
+            else:
+                for file in self.files:
+                    if path in file.parents:
+                        self.files.remove(file)
+                        self.files.add(path.parent / name / file.relative_to(path))
+                for directory in self.directories:
+                    if path in directory.parent:
+                        self.directories.remove(directory)
+                        self.directories.add(path.parent / name / directory.relative_to(path))
+                if path in self.directories:
+                    self.directories.remove(path)
+                    self.directories.add(path.parent / name)
+
     def touch(self, path: Path):
         if not set(path.parents).issubset(self.directories):
             raise NotADirectoryError(path.parent)

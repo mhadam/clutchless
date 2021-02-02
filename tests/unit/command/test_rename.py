@@ -77,3 +77,66 @@ def test_rename_command_dry_run():
         selected: "some_name.arbitrary.torrent",
     }
     assert output.new_name_by_actionable_file == {}
+
+
+def test_rename_command_dry_run_output(capsys):
+    original = MetainfoFile(
+        {"info_hash": "arbitrary", "name": "some_name"},
+        path=Path("/some/some_name.arbitrary.torrent"),
+    )
+    dupe = MetainfoFile(
+        {"info_hash": "arbitrary", "name": "some_name"}, path=Path("/some/file1")
+    )
+    second_dupe = MetainfoFile(
+        {"info_hash": "arbitrary", "name": "some_name"}, path=Path("/some/file2")
+    )
+    files = [original, dupe, second_dupe]
+    fs = MockFilesystem({"some": ["some_name.arbitrary.torrent", "file1", "file2"]})
+    command = RenameCommand(fs, files)
+
+    output = command.dry_run()
+    output.dry_run_display()
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        "Found 1 clashing renames:",
+        "‣ some_name has dupes:",
+        "⁃ /some/file1 (selected)",
+        "⁃ /some/file2",
+        "Found 1 metainfo files with new names that already exist:",
+        "/some/file1 with new name some_name.arbitrary.torrent"
+    ]) + "\n"
+
+
+def test_rename_command_run_output(capsys):
+    original = MetainfoFile(
+        {"info_hash": "arbitrary", "name": "some_name"},
+        path=Path("/some/some_name.arbitrary.torrent"),
+    )
+    dupe = MetainfoFile(
+        {"info_hash": "arbitrary", "name": "some_name"}, path=Path("/some/file1")
+    )
+    second_dupe = MetainfoFile(
+        {"info_hash": "arbitrary", "name": "some_name"}, path=Path("/some/file2")
+    )
+    third = MetainfoFile(
+        {"info_hash": "123", "name": "unique"}, path=Path("/some/file3")
+    )
+    files = [original, dupe, second_dupe, third]
+    fs = MockFilesystem({"some": ["some_name.arbitrary.torrent", "file1", "file2"]})
+    command = RenameCommand(fs, files)
+
+    output = command.run()
+    output.display()
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        "Found 1 clashing renames:",
+        "‣ some_name has dupes:",
+        "⁃ /some/file1 (selected)",
+        "⁃ /some/file2",
+        "Renamed 1 metainfo files:",
+        "/some/file3 to unique.123.torrent",
+        "Found 1 metainfo files with new names that already exist:",
+        "/some/file1 with new name some_name.arbitrary.torrent"
+    ]) + "\n"
