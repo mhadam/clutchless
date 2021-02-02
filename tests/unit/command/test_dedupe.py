@@ -73,11 +73,11 @@ def test_output_dry_run(capsys):
     command = DedupeCommand(fs, files)
 
     output = command.dry_run()
-    output.display()
+    output.dry_run_display()
 
     result = capsys.readouterr().out
     assert result == "\n".join([
-        "Deleted 1 duplicate files:",
+        "Would delete 1 duplicate files:",
         "‣ some_name:",
         "⁃ /some/path2"
     ]) + "\n"
