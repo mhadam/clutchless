@@ -90,3 +90,39 @@ def test_archive_second_query_failure(mocker: MockerFixture):
     result: ArchiveOutput = command.run()
 
     assert result.query_failure == "query failed: get_torrent_name_by_id"
+
+
+def test_dry_run_display(mocker: MockerFixture, capsys):
+    archive_path = Path("/", "test_path")
+    fs = mocker.Mock(spec=Filesystem)
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/", "file_1")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "test_name"})
+    command = ArchiveCommand(archive_path, fs, client)
+
+    output: ArchiveOutput = command.dry_run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Found 1 duplicate metainfo files",
+        "No metainfo files moved"
+    ]) + "\n"
+
+
+def test_display(mocker: MockerFixture, capsys):
+    archive_path = Path("/", "test_path")
+    fs = mocker.Mock(spec=Filesystem)
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/", "file_1")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "test_name"})
+    command = ArchiveCommand(archive_path, fs, client)
+
+    output: ArchiveOutput = command.run()
+    output.dry_run_display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Will move 1 metainfo files to /test_path:",
+        "/file_1"
+    ]) + "\n"
