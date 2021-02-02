@@ -1,7 +1,6 @@
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Set, Mapping, MutableMapping, Sequence
 
 from clutchless.command.command import CommandOutput, Command
@@ -61,7 +60,7 @@ class DedupeCommand(Command):
         for file in files:
             self.fs.remove(file.path)
 
-    def dry_run(self) -> CommandOutput:
+    def dry_run(self) -> DedupeOutput:
         for file in self.files:
             logger.debug(f"{file.name}")
         deleted_files_by_hash: MutableMapping[str, Set[MetainfoFile]] = {}
@@ -74,7 +73,7 @@ class DedupeCommand(Command):
                 deleted_files_by_hash[info_hash] = files
         return DedupeOutput(deleted_files_by_hash, remaining_files)
 
-    def run(self) -> CommandOutput:
+    def run(self) -> DedupeOutput:
         deleted_files_by_hash: MutableMapping[str, Set[MetainfoFile]] = {}
         remaining_files: Set[MetainfoFile] = set()
         paths_by_file = self._join_paths()
