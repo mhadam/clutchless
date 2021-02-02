@@ -43,3 +43,41 @@ def test_run():
     remaining_file = output.remaining_files.pop()
     assert remaining_file in files
     assert remaining_file != deleted_file
+
+
+def test_output_run(capsys):
+    files = [
+        MetainfoFile({"name": "some_name", "info_hash": "aaa"}, Path("/some/path")),
+        MetainfoFile({"name": "some_name", "info_hash": "aaa"}, Path("/some/path2"))
+    ]
+    fs = MockFilesystem({"some": ['path', 'path2']})
+    command = DedupeCommand(fs, files)
+
+    output = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Deleted 1 duplicate files:",
+        "‣ some_name:",
+        "⁃ /some/path2"
+    ]) + "\n"
+
+
+def test_output_dry_run(capsys):
+    files = [
+        MetainfoFile({"name": "some_name", "info_hash": "aaa"}, Path("/some/path")),
+        MetainfoFile({"name": "some_name", "info_hash": "aaa"}, Path("/some/path2"))
+    ]
+    fs = MockFilesystem({"some": ['path', 'path2']})
+    command = DedupeCommand(fs, files)
+
+    output = command.dry_run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Deleted 1 duplicate files:",
+        "‣ some_name:",
+        "⁃ /some/path2"
+    ]) + "\n"

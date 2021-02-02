@@ -44,6 +44,11 @@ class DedupeOutput(CommandOutput):
             print(f"No duplicates found")
 
 
+def _split_first(s):
+    iterator = iter(sorted(s))
+    return next(iterator), set(iterator)
+
+
 @dataclass
 class DedupeCommand(Command):
     def __init__(self, fs: Filesystem, files: Sequence[MetainfoFile]):
@@ -68,9 +73,10 @@ class DedupeCommand(Command):
         paths_by_file = self._join_paths()
         for (info_hash, files) in paths_by_file.items():
             logger.debug(f"{info_hash} and files {files}")
-            remaining_files.add(files.pop())
-            if files:
-                deleted_files_by_hash[info_hash] = files
+            selected, rest = _split_first(files)
+            remaining_files.add(selected)
+            if rest:
+                deleted_files_by_hash[info_hash] = rest
         return DedupeOutput(deleted_files_by_hash, remaining_files)
 
     def run(self) -> DedupeOutput:
@@ -79,8 +85,9 @@ class DedupeCommand(Command):
         paths_by_file = self._join_paths()
         for (info_hash, files) in paths_by_file.items():
             logger.debug(f"{info_hash} and files {files}")
-            remaining_files.add(files.pop())
-            if files:
-                self._delete(files)
-                deleted_files_by_hash[info_hash] = files
+            selected, rest = _split_first(files)
+            remaining_files.add(selected)
+            if rest:
+                self._delete(rest)
+                deleted_files_by_hash[info_hash] = rest
         return DedupeOutput(deleted_files_by_hash, remaining_files)
