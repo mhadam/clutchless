@@ -89,7 +89,7 @@ class LinkingAddOutput(CommandOutput):
         deleted_count = len(self.deleted_torrents)
         if linked_count > 0:
             print(f"Linked {linked_count} torrents:")
-            for (linked_file, linked_path) in self.linked_torrents.items():
+            for (linked_file, linked_path) in sorted(self.linked_torrents.items()):
                 print(f"{linked_file.name} at {linked_path}")
         if added_count > 0:
             print(f"Added {added_count} torrents:")
@@ -97,11 +97,11 @@ class LinkingAddOutput(CommandOutput):
                 print(f"{added.name}")
         if failed_count > 0:
             print(f"{failed_count} failed:")
-            for (failed_file, error) in self.failed_torrents.items():
+            for (failed_file, error) in sorted(self.failed_torrents.items()):
                 print(f"{failed_file.name} because: {error}")
         if duplicated_count > 0:
             print(f"There are {duplicated_count} duplicates:")
-            for (duplicate_file, error) in self.duplicated_torrents.items():
+            for (duplicate_file, error) in sorted(self.duplicated_torrents.items()):
                 print(f"{duplicate_file.name}")
         if deleted_count > 0:
             print(f"{deleted_count} torrents were deleted:")
@@ -113,7 +113,7 @@ class LinkingAddOutput(CommandOutput):
         added_count = len(self.added_torrents)
         if linked_count > 0:
             print(f"Would add {linked_count} torrents with data:")
-            for (linked_file, linked_path) in self.linked_torrents.items():
+            for (linked_file, linked_path) in sorted(self.linked_torrents.items()):
                 print(f"{linked_file.name} at {linked_path}")
         if added_count > 0:
             print(f"Would add {added_count} torrents without data:")
@@ -178,7 +178,7 @@ class LinkingAddCommand(Command):
         return output
 
     def run(self) -> LinkingAddOutput:
-        for result in self.torrent_data:
+        for result in sorted(self.torrent_data):
             file, location = result.metainfo_file, result.location
             if location is not None and file.path is not None:
                 self.add_service.add_with_data(file, location)
@@ -201,6 +201,6 @@ class LinkingAddCommand(Command):
         output = LinkingAddOutput()
         for linked_file in self._get_linked():
             output.linked_torrents[linked_file.metainfo_file] = linked_file.location
-        for rest_file in self._get_rest():
+        for rest_file in sorted(self._get_rest()):
             output.added_torrents.append(rest_file)
         return output

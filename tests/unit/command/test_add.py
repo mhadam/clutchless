@@ -231,3 +231,69 @@ def test_add_dry_run_display(mocker: MockerFixture, capsys):
         'some_name at /test_path/0',
         'some_name at /test_path/1',
     ]) + "\n"
+
+
+def test_linking_add_run_display(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent_with_files.return_value = CommandResult(success=True)
+    api.add_torrent.return_value = CommandResult(success=True)
+    add_service = AddService(api)
+
+    fs = MockFilesystem({"test_path"})
+    locator: TorrentDataLocator = DefaultTorrentDataLocator(fs)
+    find_service = FindService(locator)
+    path = Path("/", "test_path")
+    file = MetainfoFile(
+        {
+            "name": "meaningless",
+            "info_hash": "meaningless and necessary",
+            "info": {"length": 5},
+        },
+        path,
+    )
+    command = LinkingAddCommand(
+        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+    )
+
+    output: LinkingAddOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        'Linked 1 torrents:',
+        'meaningless at /some/place'
+    ]) + "\n"
+
+
+def test_linking_add_dry_run_display(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent_with_files.return_value = CommandResult(success=True)
+    api.add_torrent.return_value = CommandResult(success=True)
+    add_service = AddService(api)
+
+    fs = MockFilesystem({"test_path"})
+    locator: TorrentDataLocator = DefaultTorrentDataLocator(fs)
+    find_service = FindService(locator)
+    path = Path("/", "test_path")
+    file = MetainfoFile(
+        {
+            "name": "meaningless",
+            "info_hash": "meaningless and necessary",
+            "info": {"length": 5},
+        },
+        path,
+    )
+    command = LinkingAddCommand(
+        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+    )
+
+    output: LinkingAddOutput = command.dry_run()
+    output.dry_run_display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        'Would add 1 torrents with data:',
+        'meaningless at /some/place'
+    ]) + "\n"

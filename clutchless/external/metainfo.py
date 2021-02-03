@@ -50,6 +50,9 @@ class TorrentData:
     metainfo_file: MetainfoFile
     location: Optional[Path] = None
 
+    def __lt__(self, other):
+        return self.metainfo_file < other.metainfo_file
+
 
 class TorrentDataLocator(Protocol):
     async def find(self, file: MetainfoFile) -> TorrentData:
