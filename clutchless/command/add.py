@@ -142,7 +142,7 @@ class AddCommand(Command):
         return output
 
     def run(self) -> AddOutput:
-        for file in self.metainfo_files:
+        for file in sorted(self.metainfo_files):
             if file.path is not None:
                 self.service.add(file)
             else:
@@ -153,7 +153,7 @@ class AddCommand(Command):
 
     def dry_run(self) -> AddOutput:
         output = AddOutput()
-        output.added_torrents = set(self.metainfo_files)
+        output.added_torrents = sorted(self.metainfo_files)
         return output
 
 

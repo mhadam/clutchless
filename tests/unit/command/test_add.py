@@ -159,3 +159,75 @@ def test_add_linking_duplicate(mocker: MockerFixture):
 
     assert fs.exists(path)
     assert output.duplicated_torrents == {file: "duplicate"}
+
+
+def test_add_run_display(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent.return_value = CommandResult()
+    service = AddService(api)
+    fs = mocker.Mock(spec=Filesystem)
+    metainfo_paths = {Path("/", "test_path", str(n)) for n in range(2)}
+    metainfo_files = {
+        MetainfoFile({"info_hash": path, "name": "some_name"}, path) for path in metainfo_paths
+    }
+    command = AddCommand(service, fs, metainfo_files)
+    output: AddOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        '2 torrents were added:',
+        'some_name',
+        'some_name',
+        '2 torrents were deleted:',
+        'some_name at /test_path/0',
+        'some_name at /test_path/1',
+    ]) + "\n"
+
+
+def test_add_run_display(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent.return_value = CommandResult()
+    service = AddService(api)
+    fs = mocker.Mock(spec=Filesystem)
+    metainfo_paths = {Path("/", "test_path", str(n)) for n in range(2)}
+    metainfo_files = {
+        MetainfoFile({"info_hash": path, "name": "some_name"}, path) for path in metainfo_paths
+    }
+    command = AddCommand(service, fs, metainfo_files)
+    output: AddOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        '2 torrents were added:',
+        'some_name',
+        'some_name',
+        '2 torrents were deleted:',
+        'some_name at /test_path/0',
+        'some_name at /test_path/1',
+    ]) + "\n"
+
+
+def test_add_dry_run_display(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent.return_value = CommandResult()
+    service = AddService(api)
+    fs = mocker.Mock(spec=Filesystem)
+    metainfo_paths = {Path("/", "test_path", str(n)) for n in range(2)}
+    metainfo_files = {
+        MetainfoFile({"info_hash": path, "name": "some_name"}, path) for path in metainfo_paths
+    }
+    command = AddCommand(service, fs, metainfo_files)
+    output: AddOutput = command.dry_run()
+    output.dry_run_display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        '2 torrents would be added and deleted:',
+        'some_name at /test_path/0',
+        'some_name at /test_path/1',
+    ]) + "\n"
