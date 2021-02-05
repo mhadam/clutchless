@@ -182,6 +182,47 @@ def test_add_run_display(mocker: MockerFixture, capsys):
     ]) + "\n"
 
 
+def test_add_run_display_duplicated(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent.return_value = CommandResult(error="duplicate", success=False)
+    service = AddService(api)
+    fs = mocker.Mock(spec=Filesystem)
+    metainfo_path = Path("/", "test_path")
+    metainfo_file = MetainfoFile({"info_hash": "arbitrary", "name": "some_name"}, metainfo_path)
+
+    command = AddCommand(service, fs, {metainfo_file})
+
+    output: AddOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        '1 torrents are duplicates:',
+        'some_name',
+    ]) + "\n"
+
+
+def test_add_run_display_failed(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent.return_value = CommandResult(error="unknown", success=False)
+    service = AddService(api)
+    fs = mocker.Mock(spec=Filesystem)
+    metainfo_path = Path("/", "test_path")
+    metainfo_file = MetainfoFile({"info_hash": "arbitrary", "name": "some_name"}, metainfo_path)
+    command = AddCommand(service, fs, {metainfo_file})
+
+    output: AddOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        "1 torrents failed:",
+        "some_name because: unknown",
+    ]) + "\n"
+
+
 def test_add_dry_run_display(mocker: MockerFixture, capsys):
     api = mocker.Mock(spec=TransmissionApi)
     api.add_torrent.return_value = CommandResult()
