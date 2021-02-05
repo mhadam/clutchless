@@ -75,11 +75,12 @@ class LinkingAddOutput(CommandOutput):
             self.deleted_torrents.append(path)
 
     def add_linked_successes(
-        self, metainfo_paths: Sequence[MetainfoFile], data_paths: Sequence[Path]
+        self, metainfo_files: Sequence[MetainfoFile], data_paths: Sequence[Path]
     ):
         # handle linked
-        for (metainfo_path, data_path) in zip(metainfo_paths, data_paths):
-            self.linked_torrents[metainfo_path] = data_path
+        for (metainfo_file, data_path) in zip(metainfo_files, data_paths):
+            self.linked_torrents[metainfo_file] = data_path
+            self.deleted_torrents.append(metainfo_file)
 
     def display(self):
         linked_count = len(self.linked_torrents)
@@ -160,12 +161,10 @@ class AddCommand(Command):
 class LinkingAddCommand(Command):
     def __init__(
         self,
-        find_service: FindService,
         add_service: AddService,
         fs: Filesystem,
         torrent_data: Iterable[TorrentData],
     ):
-        self.find_service = find_service
         self.add_service = add_service
         self.fs = fs
         self.torrent_data = set(torrent_data)

@@ -82,8 +82,6 @@ def test_add_linking_unknown(mocker: MockerFixture):
     add_service = AddService(api)
 
     fs = MockFilesystem({"test_path"})
-    locator: TorrentDataLocator = DefaultTorrentDataLocator(fs)
-    find_service = FindService(locator)
     path = Path("/", "test_path")
     file = MetainfoFile(
         {
@@ -94,7 +92,7 @@ def test_add_linking_unknown(mocker: MockerFixture):
         path,
     )
     command = LinkingAddCommand(
-        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+        add_service, fs, {TorrentData(file, Path("/some/place"))}
     )
 
     output: LinkingAddOutput = command.run()
@@ -122,7 +120,7 @@ def test_add_linking_success(mocker: MockerFixture):
         path,
     )
     command = LinkingAddCommand(
-        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+        add_service, fs, {TorrentData(file, Path("/some/place"))}
     )
 
     output: LinkingAddOutput = command.run()
@@ -140,8 +138,6 @@ def test_add_linking_duplicate(mocker: MockerFixture):
     add_service = AddService(api)
 
     fs = MockFilesystem({"test_path"})
-    locator: TorrentDataLocator = DefaultTorrentDataLocator(fs)
-    find_service = FindService(locator)
     path = Path("/", "test_path")
     file = MetainfoFile(
         {
@@ -152,38 +148,13 @@ def test_add_linking_duplicate(mocker: MockerFixture):
         path,
     )
     command = LinkingAddCommand(
-        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+        add_service, fs, {TorrentData(file, Path("/some/place"))}
     )
 
     output: LinkingAddOutput = command.run()
 
     assert fs.exists(path)
     assert output.duplicated_torrents == {file: "duplicate"}
-
-
-def test_add_run_display(mocker: MockerFixture, capsys):
-    api = mocker.Mock(spec=TransmissionApi)
-    api.add_torrent.return_value = CommandResult()
-    service = AddService(api)
-    fs = mocker.Mock(spec=Filesystem)
-    metainfo_paths = {Path("/", "test_path", str(n)) for n in range(2)}
-    metainfo_files = {
-        MetainfoFile({"info_hash": path, "name": "some_name"}, path) for path in metainfo_paths
-    }
-    command = AddCommand(service, fs, metainfo_files)
-    output: AddOutput = command.run()
-    output.display()
-
-    result = capsys.readouterr().out
-
-    assert result == "\n".join([
-        '2 torrents were added:',
-        'some_name',
-        'some_name',
-        '2 torrents were deleted:',
-        'some_name at /test_path/0',
-        'some_name at /test_path/1',
-    ]) + "\n"
 
 
 def test_add_run_display(mocker: MockerFixture, capsys):
@@ -239,9 +210,56 @@ def test_linking_add_run_display(mocker: MockerFixture, capsys):
     api.add_torrent.return_value = CommandResult(success=True)
     add_service = AddService(api)
 
+    fs = MockFilesystem({"test_path", "test_path2"})
+    file_one = MetainfoFile(
+        {
+            "name": "meaningless",
+            "info_hash": "meaningless and necessary",
+            "info": {"length": 5},
+        },
+        Path("/", "test_path"),
+    )
+    file_two = MetainfoFile(
+        {
+            "name": "meaningless",
+            "info_hash": "meaningless and necessary",
+            "info": {"length": 5},
+        },
+        Path("/", "test_path2"),
+    )
+    torrent_data = {
+        TorrentData(file_one, Path("/some/place")),
+        TorrentData(file_two),
+    }
+    command = LinkingAddCommand(
+        add_service, fs, torrent_data
+    )
+
+    output: LinkingAddOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        'Linked 1 torrents:',
+        'meaningless at /some/place',
+        'Added 1 torrents:',
+        'meaningless',
+        '2 torrents were deleted:',
+        'meaningless at /test_path2',
+        'meaningless at /test_path'
+    ]) + "\n"
+
+
+def test_linking_add_run_display_duplicated(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent_with_files.return_value = CommandResult(
+        success=False, error="duplicate"
+    )
+    api.add_torrent.return_value = CommandResult(success=False, error="duplicate")
+    add_service = AddService(api)
+
     fs = MockFilesystem({"test_path"})
-    locator: TorrentDataLocator = DefaultTorrentDataLocator(fs)
-    find_service = FindService(locator)
     path = Path("/", "test_path")
     file = MetainfoFile(
         {
@@ -252,7 +270,7 @@ def test_linking_add_run_display(mocker: MockerFixture, capsys):
         path,
     )
     command = LinkingAddCommand(
-        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+        add_service, fs, {TorrentData(file, Path("/some/place"))}
     )
 
     output: LinkingAddOutput = command.run()
@@ -261,15 +279,17 @@ def test_linking_add_run_display(mocker: MockerFixture, capsys):
     result = capsys.readouterr().out
 
     assert result == "\n".join([
-        'Linked 1 torrents:',
-        'meaningless at /some/place'
+        'There are 1 duplicates:',
+        'meaningless'
     ]) + "\n"
 
 
-def test_linking_add_dry_run_display(mocker: MockerFixture, capsys):
+def test_linking_add_run_display_failed(mocker: MockerFixture, capsys):
     api = mocker.Mock(spec=TransmissionApi)
-    api.add_torrent_with_files.return_value = CommandResult(success=True)
-    api.add_torrent.return_value = CommandResult(success=True)
+    api.add_torrent_with_files.return_value = CommandResult(
+        error="unknown", success=False
+    )
+    api.add_torrent.return_value = CommandResult(error="unknown", success=False)
     add_service = AddService(api)
 
     fs = MockFilesystem({"test_path"})
@@ -285,7 +305,42 @@ def test_linking_add_dry_run_display(mocker: MockerFixture, capsys):
         path,
     )
     command = LinkingAddCommand(
-        find_service, add_service, fs, {TorrentData(file, Path("/some/place"))}
+        add_service, fs, {TorrentData(file, Path("/some/place"))}
+    )
+
+    output: LinkingAddOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+
+    assert result == "\n".join([
+        '1 failed:',
+        'meaningless because: unknown'
+    ]) + "\n"
+
+
+def test_linking_add_dry_run_display(mocker: MockerFixture, capsys):
+    api = mocker.Mock(spec=TransmissionApi)
+    api.add_torrent_with_files.return_value = CommandResult(success=True)
+    api.add_torrent.return_value = CommandResult(success=True)
+    add_service = AddService(api)
+
+    fs = MockFilesystem({"test_path"})
+    path = Path("/", "test_path")
+    file = MetainfoFile(
+        {
+            "name": "meaningless",
+            "info_hash": "meaningless and necessary",
+            "info": {"length": 5},
+        },
+        path,
+    )
+    torrent_data = {
+        TorrentData(file, Path("/some/place")),
+        TorrentData(file)
+    }
+    command = LinkingAddCommand(
+        add_service, fs, torrent_data
     )
 
     output: LinkingAddOutput = command.dry_run()
@@ -295,5 +350,7 @@ def test_linking_add_dry_run_display(mocker: MockerFixture, capsys):
 
     assert result == "\n".join([
         'Would add 1 torrents with data:',
-        'meaningless at /some/place'
+        'meaningless at /some/place',
+        'Would add 1 torrents without data:',
+        'meaningless',
     ]) + "\n"

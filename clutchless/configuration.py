@@ -105,7 +105,7 @@ def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRes
         if response.strip().lower() != "y":
             raise RuntimeError("User decided not to continue")
 
-        command = LinkingAddCommand(find_service, add_service, fs, torrent_data)
+        command = LinkingAddCommand(add_service, fs, torrent_data)
     return command, args
 
 
