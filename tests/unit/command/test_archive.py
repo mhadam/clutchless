@@ -13,6 +13,7 @@ from clutchless.command.archive import (
 from clutchless.external.filesystem import Filesystem, CopyError
 from clutchless.external.result import QueryResult
 from clutchless.external.transmission import TransmissionApi
+from tests.mock_fs import MockFilesystem
 
 
 def test_create_actions():
@@ -205,4 +206,31 @@ def test_display_errors(mocker: MockerFixture, capsys):
         "Moved 1 metainfo files to /test_path/local_error",
         "\x1b[32m✓ some_name",
         "No metainfo files moved",
+    ]) + "\n"
+
+
+def test_dry_run_display_copied(mocker: MockerFixture, capsys):
+    archive_path = Path("/", "test_path")
+    fs = MockFilesystem({})
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_errors_by_id.return_value = QueryResult({1: (1, "some tracker error"), 2: (3, "some local error")})
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/some/path"), 2: Path("/some/path2"), 3: Path("/some/path3")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "some_name", 2: "another_name", 3: "third_name"})
+    command = ErrorArchiveCommand(archive_path, fs, client)
+
+    output = command.dry_run()
+    output.dry_run_display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Found 1 torrent local errors:",
+        "another_name with error \"some local error\"",
+        "Found 1 torrent tracker errors:",
+        "some_name with error \"some tracker error\"",
+        "Will move 1 metainfo files to /test_path/tracker_error",
+        "another_name",
+        "Will move 1 metainfo files to /test_path/local_error",
+        "some_name",
+        "Will move 1 metainfo files to /test_path:",
+        "/some/path3"
     ]) + "\n"
