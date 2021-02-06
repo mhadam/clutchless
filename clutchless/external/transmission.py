@@ -371,7 +371,8 @@ class ClutchApi(TransmissionApi):
         )
         result: MutableMapping[int, str] = {}
         for torrent in torrents:
-            if torrent.error == 3:
+            # no data found error found in torrent.c in Transmission project
+            if torrent.error == 3 and "No data found!" in torrent.error_string:
                 result[torrent.id] = torrent.name
         return QueryResult(value=result)
 
