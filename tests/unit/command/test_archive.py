@@ -176,8 +176,9 @@ def test_display(mocker: MockerFixture, capsys):
 
     result = capsys.readouterr().out
     assert result == "\n".join([
-        "Will move 1 metainfo files to /test_path:",
-        "/file_1"
+        "Moved 1 metainfo files to /test_path:",
+        "\x1b[32m✓ test_name",
+        "No metainfo files moved",
     ]) + "\n"
 
 
