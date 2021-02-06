@@ -128,7 +128,7 @@ def link_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRe
     find_service = FindService(data_locator)
 
     if link_args.get("--list"):
-        return ListLinkCommand(link_service, find_service), link_args
+        return ListLinkCommand(link_service), link_args
     return LinkCommand(link_service, find_service), link_args
 
 

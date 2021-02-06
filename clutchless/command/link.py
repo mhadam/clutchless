@@ -108,24 +108,15 @@ class LinkCommand(Command):
 
 @dataclass
 class LinkListCommandResult(CommandOutput):
-    found: Set[TorrentData]
-    rest: Set[MetainfoFile]
+    files: Set[MetainfoFile]
 
     def display(self):
-        is_any_found = len(self.found) > 0
-        is_any_rest = len(self.rest) > 0
+        is_any_found = len(self.files) > 0
         if is_any_found:
             print("Found following missing data torrents:")
-            for torrent_data in self.found:
-                name = torrent_data.metainfo_file.name
-                print(f"{name} at {torrent_data.location}")
-
-        if is_any_rest:
-            print("Following missing data torrents could not be located:")
-            for metainfo_file in self.rest:
-                print(f"{metainfo_file.name}")
-
-        if not (is_any_found or is_any_rest):
+            for file in sorted(self.files):
+                print(f"{file.name}")
+        else:
             print("No missing data torrents found.")
 
     def dry_run_display(self):
@@ -133,17 +124,15 @@ class LinkListCommandResult(CommandOutput):
 
 
 class ListLinkCommand(Command):
-    def __init__(self, link_service: LinkService, find_service: FindService):
+    def __init__(self, link_service: LinkService):
         self.link_service = link_service
-        self.find_service = find_service
 
     def run(self) -> LinkListCommandResult:
         torrent_id_by_metainfo_file = (
             self.link_service.get_incomplete_id_by_metainfo_file()
         )
         metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
-        found, rest = self.find_service.find(metainfo_files)
-        return LinkListCommandResult(found, rest)
+        return LinkListCommandResult(metainfo_files)
 
     def dry_run(self) -> CommandOutput:
         raise NotImplementedError

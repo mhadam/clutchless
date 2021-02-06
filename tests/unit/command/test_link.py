@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pytest_mock import MockerFixture
 
-from clutchless.command.link import LinkCommand, LinkFailure
+from clutchless.command.link import LinkCommand, LinkFailure, ListLinkCommand
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.metainfo import TorrentData
 from clutchless.service.torrent import LinkService, FindService
@@ -146,3 +146,29 @@ def test_link_dry_run_success_output(mocker: MockerFixture, capsys):
         "some_name at ."
     ]) + "\n"
 
+
+def test_link_list_run(mocker:MockerFixture):
+    metainfo_file = MetainfoFile({"info_hash": "meaningless", "name": "some_name"})
+    link_service = mocker.Mock(spec=LinkService)
+    link_service.get_incomplete_id_by_metainfo_file.return_value = {metainfo_file: 1}
+    command = ListLinkCommand(link_service)
+
+    output = command.run()
+
+    assert output.files == {metainfo_file}
+
+
+def test_link_list_output(mocker: MockerFixture, capsys):
+    metainfo_file = MetainfoFile({"info_hash": "meaningless", "name": "some_name"})
+    link_service = mocker.Mock(spec=LinkService)
+    link_service.get_incomplete_id_by_metainfo_file.return_value = {metainfo_file: 1}
+    command = ListLinkCommand(link_service)
+
+    output = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Found following missing data torrents:",
+        "some_name"
+    ]) + "\n"
