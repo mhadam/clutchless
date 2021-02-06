@@ -60,3 +60,27 @@ def test_prune_client_dry_run_output(mocker: MockerFixture, capsys):
         "The following torrents would be pruned:",
         "some_name"
     ]) + "\n"
+
+
+def test_prune_client_dry_run_empty_output(mocker: MockerFixture, capsys):
+    service: PruneService = mocker.Mock(spec=PruneService)
+    service.get_torrent_name_by_id_with_missing_data.return_value = {}
+    command = PruneClientCommand(service)
+
+    output = command.dry_run()
+    output.dry_run_display()
+
+    result = capsys.readouterr().out
+    assert result == "No torrents would be pruned from client.\n"
+
+
+def test_prune_client_run_empty_output(mocker: MockerFixture, capsys):
+    service: PruneService = mocker.Mock(spec=PruneService)
+    service.get_torrent_name_by_id_with_missing_data.return_value = {}
+    command = PruneClientCommand(service)
+
+    output = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "No torrents were pruned from client.\n"
