@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Set, Mapping, MutableSequence, Tuple, Sequence
+from typing import Set, Mapping, MutableSequence, Tuple, Sequence, Iterable
 
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
@@ -81,13 +81,19 @@ class LinkCommand(Command):
                 error.append(LinkFailure(torrent_data, str(e)))
         return success, error
 
+    def _separate(self, results: Iterable[TorrentData]) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
+        found = {data for data in results if data.location is not None}
+        rest = {data.metainfo_file for data in results if data.location is None}
+        return found, rest
+
     def run(self) -> LinkCommandOutput:
         torrent_id_by_metainfo_file = (
             self.link_service.get_incomplete_id_by_metainfo_file()
         )
         metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
-        found, rest = self.find_service.find(metainfo_files)
-        success, failure = self.handle_found(found, torrent_id_by_metainfo_file)
+        results = self.find_service.find(metainfo_files)
+        found, rest = self._separate(results)
+        success, failure = self.handle_found(set(found), torrent_id_by_metainfo_file)
         return LinkCommandOutput(rest, failure, success)
 
     def dry_run(self) -> LinkCommandOutput:
@@ -95,7 +101,8 @@ class LinkCommand(Command):
             self.link_service.get_incomplete_id_by_metainfo_file()
         )
         metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
-        found, rest = self.find_service.find(metainfo_files)
+        results = self.find_service.find(metainfo_files)
+        found, rest = self._separate(results)
         return LinkCommandOutput(success=list(found), no_matching_data=rest)
 
 
