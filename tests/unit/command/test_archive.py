@@ -131,12 +131,35 @@ def test_dry_run_display(mocker: MockerFixture, capsys):
     command = ArchiveCommand(archive_path, fs, client)
 
     output: ArchiveOutput = command.dry_run()
-    output.display()
+    output.dry_run_display()
 
     result = capsys.readouterr().out
     assert result == "\n".join([
         "Found 1 duplicate metainfo files",
-        "No metainfo files moved"
+        "No metainfo files to move"
+    ]) + "\n"
+
+
+def test_dry_run_display_errors(mocker: MockerFixture, capsys):
+    archive_path = Path("/", "test_path")
+    fs = mocker.Mock(spec=Filesystem)
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_errors_by_id.return_value = QueryResult({1: (1, "some tracker error"), 2: (3, "some local error")})
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/some/path"), 2: Path("/some/path2")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "some_name", 2: "another_name"})
+    command = ErrorArchiveCommand(archive_path, fs, client)
+
+    output = command.dry_run()
+    output.dry_run_display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Found 1 torrent local errors:",
+        "another_name with error \"some local error\"",
+        "Found 1 torrent tracker errors:",
+        "some_name with error \"some tracker error\"",
+        "Found 2 duplicate metainfo files",
+        "No metainfo files to move"
     ]) + "\n"
 
 
@@ -149,10 +172,36 @@ def test_display(mocker: MockerFixture, capsys):
     command = ArchiveCommand(archive_path, fs, client)
 
     output: ArchiveOutput = command.run()
-    output.dry_run_display()
+    output.display()
 
     result = capsys.readouterr().out
     assert result == "\n".join([
         "Will move 1 metainfo files to /test_path:",
         "/file_1"
+    ]) + "\n"
+
+
+def test_display_errors(mocker: MockerFixture, capsys):
+    archive_path = Path("/", "test_path")
+    fs = mocker.Mock(spec=Filesystem)
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_errors_by_id.return_value = QueryResult({1: (1, "some tracker error"), 2: (3, "some local error")})
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/some/path"), 2: Path("/some/path2")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "some_name", 2: "another_name"})
+    command = ErrorArchiveCommand(archive_path, fs, client)
+
+    output = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Found 1 torrent local errors:",
+        "another_name with error \"some local error\"",
+        "Found 1 torrent tracker errors:",
+        "some_name with error \"some tracker error\"",
+        "Moved 1 metainfo files to /test_path/tracker_error",
+        "\x1b[32m✓ another_name",
+        "Moved 1 metainfo files to /test_path/local_error",
+        "\x1b[32m✓ some_name",
+        "No metainfo files moved",
     ]) + "\n"

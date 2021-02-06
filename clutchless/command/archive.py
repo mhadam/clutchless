@@ -187,12 +187,11 @@ def sort_errors(
 
 
 def handle_data(
-    fs: Filesystem,
     archive_path: Path,
     torrent_file_by_id: Mapping[int, Path],
     torrent_name_by_id: Mapping[int, str],
     errors_by_id: Optional[Mapping[int, Tuple[int, str]]] = None,
-) -> ArchiveOutput:
+) -> Tuple[ArchiveOutput, Set[ArchiveAction]]:
     if errors_by_id is None:
         errors_by_id = {}
     actions = create_archive_actions(
@@ -204,9 +203,7 @@ def handle_data(
         local_errors=local_errors,
         tracker_errors=tracker_errors,
     )
-    for action in actions:
-        output = handle_action(fs, archive_path, output, action)
-    return output
+    return output, actions
 
 
 class ErrorArchiveCommand(Command):
@@ -249,13 +246,15 @@ class ErrorArchiveCommand(Command):
         except RuntimeError as e:
             return ArchiveOutput(self.archive_path, query_failure=str(e))
         self.fs.create_dir(self.archive_path)
-        return handle_data(
-            self.fs,
+        output, actions = handle_data(
             self.archive_path,
             torrent_file_by_id,
             torrent_name_by_id,
             errors_by_id,
         )
+        for action in actions:
+            output = handle_action(self.fs, self.archive_path, output, action)
+        return output
 
     def _get_already_exists(
         self, actions: Set[ArchiveAction], torrent_file_by_id: Mapping[int, Path]
@@ -336,12 +335,14 @@ class ArchiveCommand(Command):
         except RuntimeError as e:
             return ArchiveOutput(self.archive_path, query_failure=str(e))
         self.fs.create_dir(self.archive_path)
-        return handle_data(
-            self.fs,
+        output, actions = handle_data(
             self.archive_path,
             torrent_file_by_id,
             torrent_name_by_id,
         )
+        for action in actions:
+            output = handle_action(self.fs, self.archive_path, output, action)
+        return output
 
     def _get_already_exists(
         self, actions: Set[ArchiveAction], torrent_file_by_id: Mapping[int, Path]
