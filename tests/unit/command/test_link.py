@@ -172,3 +172,15 @@ def test_link_list_output(mocker: MockerFixture, capsys):
         "Found following missing data torrents:",
         "some_name"
     ]) + "\n"
+
+
+def test_link_list_empty_output(mocker: MockerFixture, capsys):
+    link_service = mocker.Mock(spec=LinkService)
+    link_service.get_incomplete_id_by_metainfo_file.return_value = {}
+    command = ListLinkCommand(link_service)
+
+    output = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "No missing data torrents found.\n"
