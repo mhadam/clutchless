@@ -269,3 +269,20 @@ def test_run_display_already_exists(mocker: MockerFixture, capsys):
         "test_name",
         "No metainfo files moved"
     ]) + "\n"
+
+
+def test_query_failure_output(mocker: MockerFixture, capsys):
+    archive_path = Path("/", "test_path")
+    fs = MockFilesystem({})
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_torrent_files_by_id.return_value = QueryResult(
+        error="some_error", success=False
+    )
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "test_name"})
+    command = ArchiveCommand(archive_path, fs, client)
+
+    output: ArchiveOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "Query failed: get_torrent_files_by_id\n"

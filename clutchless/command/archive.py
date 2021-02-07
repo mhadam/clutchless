@@ -76,7 +76,7 @@ class ArchiveOutput(CommandOutput):
 
     def display(self):
         if self.query_failure is not None:
-            print(f"Query failed: {self.query_failure}")
+            print(f"Query failed: {self.query_failure.lstrip('query failed: ')}")
         else:
             if self.local_errors:
                 print(f"Found {len(self.local_errors)} torrent local errors:")
