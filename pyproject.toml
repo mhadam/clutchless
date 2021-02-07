@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "clutchless"
-version = "0.1.0-alpha.21"
+version = "0.1.0"
 description = "A CLI tool to manage torrents and their data in Transmission"
 authors = ["mhadam <michael@hadam.us>"]
 repository = "https://github.com/mhadam/clutchless"
