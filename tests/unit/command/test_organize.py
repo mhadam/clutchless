@@ -175,5 +175,22 @@ def test_organize_dry_run_display(mocker: MockerFixture, capsys):
     assert result == expected
 
 
+def test_organize_dry_run_empty_case(mocker: MockerFixture, capsys):
+    service: OrganizeService = mocker.Mock(spec=OrganizeService)
+    service.get_announce_urls_by_folder_name.return_value = OrderedDict()
+    service.get_announce_urls_by_torrent_id.return_value = {}
+    names_by_id = {}
+    paths = [Path("/first_torrent"), Path("/second_torrent")]
+    service.get_metainfo_file.side_effect = lambda torrent_id: names_by_id[torrent_id]
+    service.get_torrent_location.side_effect = lambda torrent_id: paths[torrent_id - 1]
+    command = OrganizeCommand("0=SomeFolder", Path("/some_path"), service)
+
+    output = command.dry_run()
+    output.dry_run_display()
+
+    result = capsys.readouterr().out
+    assert result == "Nothing to do.\n"
+
+
 def test_organize_list_display():
     pass
