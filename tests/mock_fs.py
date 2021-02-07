@@ -2,7 +2,7 @@ from collections import deque
 from pathlib import Path
 from typing import Mapping, Iterable, Deque, Set, Tuple
 
-from clutchless.external.filesystem import Filesystem
+from clutchless.external.filesystem import Filesystem, CopyError
 
 
 def _get_paths(spec: Iterable) -> Tuple[Set[Path], Set[Path]]:
@@ -67,6 +67,10 @@ class MockFilesystem(Filesystem):
         self.directories.update(set(path.parents))
 
     def copy(self, source: Path, destination: Path):
+        if self.is_file(destination):
+            raise CopyError("destination is a file")
+        elif self.exists(destination / source.name):
+            raise CopyError("destination already exists")
         if not self.exists(source):
             raise FileNotFoundError(source)
         elif self.is_file(source):

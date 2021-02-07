@@ -76,6 +76,8 @@ class DefaultFilesystem(Filesystem):
         path.mkdir(parents=True, exist_ok=True)
 
     def copy(self, source: Path, destination: Path):
+        if self.is_file(destination):
+            raise CopyError("destination is a file")
         if (destination / source.name).exists():
             raise CopyError("destination already exists")
         try:

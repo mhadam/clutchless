@@ -87,8 +87,10 @@ class ArchiveOutput(CommandOutput):
                 for action in self.tracker_errors:
                     print(f'{action.name} with error "{action.client_error[1]}"')
             if self.already_exists:
-                print(f"Found {len(self.already_exists)} duplicate metainfo files")
-            copied_count = len(self.copied)
+                print(f"Found {len(self.already_exists)} duplicate metainfo files:")
+                for action in self.already_exists:
+                    print(f'{action.name}')
+            copied_count = len(self.copied) + len(self.copy_failure)
             if copied_count > 0:
                 copied_local_error = {
                     action for action in self.local_errors if action in self.copied
@@ -113,13 +115,13 @@ class ArchiveOutput(CommandOutput):
                     print(f"Moved {len(rest)} metainfo files to {self.destination}:")
                     for action in rest:
                         print(Fore.GREEN + f"\N{check mark} {action.name}")
-            if self.copy_failure:
-                print(f"Failed to move {len(self.copy_failure)} metainfo files:")
-                for action, error_string in self.copy_failure.items():
-                    print(
-                        Fore.RED
-                        + f"\N{ballot x} failed to move {action.source} because:{error_string}"
-                    )
+                if self.copy_failure:
+                    print(f"Failed to move {len(self.copy_failure)} metainfo files:")
+                    for action, error_string in self.copy_failure.items():
+                        print(
+                            Fore.RED
+                            + f"\N{ballot x} failed to move {action.source} because:{error_string}"
+                        )
             else:
                 print(f"No metainfo files moved")
 

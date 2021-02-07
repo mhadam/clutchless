@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+
+from clutchless.external.filesystem import CopyError
 from tests.mock_fs import MockFilesystem
 
 
@@ -69,3 +72,17 @@ def test_mock_fs_top_level():
     )
 
     assert fs.exists(Path("/test"))
+
+
+def test_copy():
+    fs = MockFilesystem({"file_1", "test_path"})
+    with pytest.raises(CopyError) as e:
+        fs.copy(Path("/file_1"), Path("/test_path"))
+    assert "destination is a file" in str(e)
+
+
+def test_copy_nested():
+    fs = MockFilesystem(["file_1", {"test_path": ["file_1"]}])
+    with pytest.raises(CopyError) as e:
+        fs.copy(Path("/file_1"), Path("/test_path"))
+    assert "destination already exists" in str(e)

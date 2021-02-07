@@ -179,7 +179,6 @@ def test_display(mocker: MockerFixture, capsys):
     assert result == "\n".join([
         "Moved 1 metainfo files to /test_path:",
         "\x1b[32m✓ test_name",
-        "No metainfo files moved",
     ]) + "\n"
 
 
@@ -205,7 +204,6 @@ def test_display_errors(mocker: MockerFixture, capsys):
         "\x1b[32m✓ another_name",
         "Moved 1 metainfo files to /test_path/local_error",
         "\x1b[32m✓ some_name",
-        "No metainfo files moved",
     ]) + "\n"
 
 
@@ -233,4 +231,41 @@ def test_dry_run_display_copied(mocker: MockerFixture, capsys):
         "some_name",
         "Will move 1 metainfo files to /test_path:",
         "/some/path3"
+    ]) + "\n"
+
+
+def test_run_display_copy_failure(mocker: MockerFixture, capsys):
+    archive_path = Path("/", "test_path")
+    fs = MockFilesystem({"file_1", "test_path"})
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/", "file_1")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "test_name"})
+    command = ArchiveCommand(archive_path, fs, client)
+
+    output: ArchiveOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Failed to move 1 metainfo files:",
+        "\x1b[31m✗ failed to move /file_1 because:destination is a file"
+    ]) + "\n"
+
+
+def test_run_display_already_exists(mocker: MockerFixture, capsys):
+    archive_path = Path("/", "test_path")
+    fs = MockFilesystem(["file_1", {"test_path": ["file_1"]}])
+    client = mocker.Mock(spec=TransmissionApi)
+    client.get_torrent_files_by_id.return_value = QueryResult({1: Path("/", "file_1")})
+    client.get_torrent_name_by_id.return_value = QueryResult({1: "test_name"})
+    command = ArchiveCommand(archive_path, fs, client)
+
+    output: ArchiveOutput = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "\n".join([
+        "Found 1 duplicate metainfo files:",
+        "test_name",
+        "No metainfo files moved"
     ]) + "\n"
