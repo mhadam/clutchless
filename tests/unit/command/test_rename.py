@@ -90,8 +90,13 @@ def test_rename_command_dry_run_output(capsys):
     second_dupe = MetainfoFile(
         {"info_hash": "arbitrary", "name": "some_name"}, path=Path("/some/file2")
     )
-    files = [original, dupe, second_dupe]
-    fs = MockFilesystem({"some": ["some_name.arbitrary.torrent", "file1", "file2"]})
+    unique = MetainfoFile(
+        {"info_hash": "unique", "name": "unique"}, path=Path("/some/file3")
+    )
+    files = [original, dupe, second_dupe, unique]
+    fs = MockFilesystem(
+        {"some": ["some_name.arbitrary.torrent", "file1", "file2", "file3"]}
+    )
     command = RenameCommand(fs, files)
 
     output = command.dry_run()
@@ -106,6 +111,8 @@ def test_rename_command_dry_run_output(capsys):
                 "‣ some_name has dupes:",
                 "⁃ /some/file1 (selected)",
                 "⁃ /some/file2",
+                "Found 1 metainfo files to rename:",
+                "/some/file3 to unique.unique.torrent",
                 "Found 1 metainfo files with new names that already exist:",
                 "/some/file1 with new name some_name.arbitrary.torrent",
             ]
@@ -152,3 +159,27 @@ def test_rename_command_run_output(capsys):
         )
         + "\n"
     )
+
+
+def test_rename_command_run_output_empty(capsys):
+    files = []
+    fs = MockFilesystem({})
+    command = RenameCommand(fs, files)
+
+    output = command.run()
+    output.display()
+    result = capsys.readouterr().out
+
+    assert result == "No files found to rename.\n"
+
+
+def test_rename_command_dry_run_output_empty(capsys):
+    files = []
+    fs = MockFilesystem({})
+    command = RenameCommand(fs, files)
+
+    output = command.dry_run()
+    output.dry_run_display()
+    result = capsys.readouterr().out
+
+    assert result == "No files found to rename.\n"
