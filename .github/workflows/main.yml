@@ -1,6 +1,8 @@
 name: Test clutchless
 
 on:
+  create:
+    branches: [ master ]
   push:
     branches: [ develop ]
   pull_request:
