@@ -62,7 +62,7 @@ class OrganizeCommandOutput(CommandOutput):
                 file = self.files[action.torrent_id]
                 print(f"{file.name} to {action.new_path}")
         else:
-            "Nothing to do."
+            print("Nothing to do.")
 
 
 class OrganizeCommand(Command):
@@ -124,11 +124,13 @@ class OrganizeCommand(Command):
         announce_urls_by_torrent_id = (
             self.organize_service.get_announce_urls_by_torrent_id()
         )
-        actions = self._make_actions(
-            overridden_announce_url_to_folder_name, announce_urls_by_torrent_id
+        actions = list(
+            self._make_actions(
+                overridden_announce_url_to_folder_name, announce_urls_by_torrent_id
+            )
         )
         files = self._get_files({action.torrent_id for action in actions})
-        return OrganizeCommandOutput(files, list(actions))
+        return OrganizeCommandOutput(files, actions)
 
     def _make_actions(
         self,
