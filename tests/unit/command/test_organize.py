@@ -197,7 +197,13 @@ def test_organize_list_display(mocker: MockerFixture, capsys):
     service: OrganizeService = mocker.Mock(spec=OrganizeService)
     service.get_announce_urls_by_folder_name.return_value = OrderedDict(
         [
-            ("AfakeCom", ["http://afake.com/12gfdxj7j32356/announce"]),
+            (
+                "AfakeCom",
+                [
+                    "http://afake.com/12gfdxj7j32356/announce",
+                    "http://extrafake.com/12gfdxj7j32356/announce",
+                ],
+            ),
             ("HiWhatUk", ["http://hi.what.uk:2710/n0fbno312o3w4z/announce"]),
         ]
     )
@@ -212,7 +218,20 @@ def test_organize_list_display(mocker: MockerFixture, capsys):
             "ID   Name       Tracker                                 ",
             "========================================================",
             "0    AfakeCom   http://afake.com/12gfdxj7j32356/announce",
+            "0    AfakeCom   http://extrafake.com/12gfdxj7j32356/a...",
             "1    HiWhatUk   http://hi.what.uk:2710/n0fbno312o3w4z...",
         ]
     )
     assert result == expected
+
+
+def test_organize_list_display_empty(mocker: MockerFixture, capsys):
+    service: OrganizeService = mocker.Mock(spec=OrganizeService)
+    service.get_announce_urls_by_folder_name.return_value = OrderedDict()
+    command = ListOrganizeCommand(service)
+
+    output = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    assert result == "No folder names to organize into (are there any torrents?).\n"
