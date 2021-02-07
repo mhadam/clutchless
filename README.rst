@@ -21,8 +21,8 @@ Clutchless
     :target: https://pypistats.org/packages/clutchless
     :alt: PyPI downloads badge
 
-.. image:: https://coveralls.io/repos/github/mhadam/clutchless/badge.svg?branch=develop
-    :target: https://coveralls.io/github/mhadam/clutchless?branch=develop
+.. image:: https://coveralls.io/repos/github/mhadam/clutchless/badge.svg?branch=master
+    :target: https://coveralls.io/github/mhadam/clutchless?branch=master
 
 Other links
 ===========
