@@ -7,6 +7,7 @@ from clutchless.command.organize import (
     ListOrganizeCommandOutput,
     OrganizeCommand,
     OrganizeAction,
+    ListOrganizeCommand,
 )
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.service.torrent import OrganizeService
@@ -192,5 +193,26 @@ def test_organize_dry_run_empty_case(mocker: MockerFixture, capsys):
     assert result == "Nothing to do.\n"
 
 
-def test_organize_list_display():
-    pass
+def test_organize_list_display(mocker: MockerFixture, capsys):
+    service: OrganizeService = mocker.Mock(spec=OrganizeService)
+    service.get_announce_urls_by_folder_name.return_value = OrderedDict(
+        [
+            ("AfakeCom", ["http://afake.com/12gfdxj7j32356/announce"]),
+            ("HiWhatUk", ["http://hi.what.uk:2710/n0fbno312o3w4z/announce"]),
+        ]
+    )
+    command = ListOrganizeCommand(service)
+
+    output = command.run()
+    output.display()
+
+    result = capsys.readouterr().out
+    expected = "\n".join(
+        [
+            "ID   Name       Tracker                                 ",
+            "========================================================",
+            "0    AfakeCom   http://afake.com/12gfdxj7j32356/announce",
+            "1    HiWhatUk   http://hi.what.uk:2710/n0fbno312o3w4z...",
+        ]
+    )
+    assert result == expected
