@@ -74,23 +74,3 @@ def test_get_groups_by_name():
         },
         "TestCom": {"http://domain.test.com/announce"},
     }
-
-
-def test_get_folder_name_by_url():
-    announce_urls = OrderedDict(
-        {
-            "AnotherNet": [
-                "http://domain.another.net/announce",
-                "http://domain.another.net/announce2",
-            ],
-            "TestCom": ["http://domain.test.com/announce"],
-        }
-    )
-    overrides = {0: "ArbitraryName"}
-    result = OrganizeService._get_folder_name_by_url(announce_urls, overrides)
-
-    assert result == {
-        "http://domain.another.net/announce": "ArbitraryName",
-        "http://domain.another.net/announce2": "ArbitraryName",
-        "http://domain.test.com/announce": "TestCom",
-    }
