@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Sequence, Mapping, Iterable, Tuple
+from typing import Set, Sequence, Mapping, Iterable, Tuple, MutableMapping
 
 from texttable import Texttable
 
@@ -79,30 +79,41 @@ class OrganizeCommand(Command):
             result[torrent_id] = self.organize_service.get_metainfo_file(torrent_id)
         return result
 
+    @staticmethod
+    def _override_folder_names(
+        announce_urls_by_folder_name: "OrderedDict[str, Sequence[str]]",
+        overrides: Mapping[int, str],
+    ) -> Mapping[str, str]:
+        """Returns map: folder name by url"""
+        result: MutableMapping[str, str] = {}
+        for (index, (folder_name, urls)) in enumerate(
+            announce_urls_by_folder_name.items()
+        ):
+            for url in urls:
+                try:
+                    result[url] = overrides[index]
+                except KeyError:
+                    result[url] = folder_name
+        return result
+
     def run(self) -> OrganizeCommandOutput:
         overrides = TrackerSpec(self.raw_spec)
-        announce_url_to_folder_name = self.organize_service.get_folder_name_by_url(
-            overrides
-        )
-        announce_urls_by_torrent_id = (
-            self.organize_service.get_announce_urls_by_torrent_id()
-        )
+        announce_url_to_folder_name = self.organize_service.get_announce_urls_by_folder_name()
+        overridden_announce_url_to_folder_name = self._override_folder_names(announce_url_to_folder_name, overrides)
+        announce_urls_by_torrent_id = self.organize_service.get_announce_urls_by_torrent_id()
         actions = self._make_actions(
-            announce_url_to_folder_name, announce_urls_by_torrent_id
+            overridden_announce_url_to_folder_name, announce_urls_by_torrent_id
         )
         success, fail = self._handle(actions)
         return OrganizeCommandOutput(success=success, failure=fail)
 
     def dry_run(self) -> CommandOutput:
         overrides = TrackerSpec(self.raw_spec)
-        announce_url_to_folder_name = self.organize_service.get_folder_name_by_url(
-            overrides
-        )
-        announce_urls_by_torrent_id = (
-            self.organize_service.get_announce_urls_by_torrent_id()
-        )
+        announce_url_to_folder_name = self.organize_service.get_announce_urls_by_folder_name()
+        overridden_announce_url_to_folder_name = self._override_folder_names(announce_url_to_folder_name, overrides)
+        announce_urls_by_torrent_id = self.organize_service.get_announce_urls_by_torrent_id()
         actions = self._make_actions(
-            announce_url_to_folder_name, announce_urls_by_torrent_id
+            overridden_announce_url_to_folder_name, announce_urls_by_torrent_id
         )
         files = self._get_files({action.torrent_id for action in actions})
         return OrganizeCommandOutput(files, list(actions))

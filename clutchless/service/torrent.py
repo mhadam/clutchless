@@ -314,27 +314,6 @@ class OrganizeService:
                 continue
         return trackers
 
-    def get_folder_name_by_url(self, overrides: Mapping[int, str]) -> Mapping[str, str]:
-        announce_urls_by_folder_name = self.get_announce_urls_by_folder_name()
-        return self._get_folder_name_by_url(announce_urls_by_folder_name, overrides)
-
-    @staticmethod
-    def _get_folder_name_by_url(
-        announce_urls_by_folder_name: "OrderedDict[str, Sequence[str]]",
-        overrides: Mapping[int, str],
-    ) -> Mapping[str, str]:
-        """Returns map: folder name by url"""
-        result: MutableMapping[str, str] = {}
-        for (index, (folder_name, urls)) in enumerate(
-            announce_urls_by_folder_name.items()
-        ):
-            for url in urls:
-                try:
-                    result[url] = overrides[index]
-                except KeyError:
-                    result[url] = folder_name
-        return result
-
     def get_announce_urls_by_torrent_id(self) -> Mapping[int, Set[str]]:
         result: QueryResult[Mapping[int, Set[str]]] = self.client.get_torrent_trackers()
         if not result.success:

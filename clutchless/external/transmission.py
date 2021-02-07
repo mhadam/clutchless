@@ -272,7 +272,7 @@ class ClutchApi(TransmissionApi):
             return {tracker.announce for tracker in torrent.trackers}
 
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields={"trackers"}
+            fields={"trackers", "id"}
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
         torrents: Sequence[TorrentAccessorObject] = cast(
