@@ -98,9 +98,15 @@ class OrganizeCommand(Command):
 
     def run(self) -> OrganizeCommandOutput:
         overrides = TrackerSpec(self.raw_spec)
-        announce_url_to_folder_name = self.organize_service.get_announce_urls_by_folder_name()
-        overridden_announce_url_to_folder_name = self._override_folder_names(announce_url_to_folder_name, overrides)
-        announce_urls_by_torrent_id = self.organize_service.get_announce_urls_by_torrent_id()
+        announce_url_to_folder_name = (
+            self.organize_service.get_announce_urls_by_folder_name()
+        )
+        overridden_announce_url_to_folder_name = self._override_folder_names(
+            announce_url_to_folder_name, overrides
+        )
+        announce_urls_by_torrent_id = (
+            self.organize_service.get_announce_urls_by_torrent_id()
+        )
         actions = self._make_actions(
             overridden_announce_url_to_folder_name, announce_urls_by_torrent_id
         )
@@ -109,9 +115,15 @@ class OrganizeCommand(Command):
 
     def dry_run(self) -> CommandOutput:
         overrides = TrackerSpec(self.raw_spec)
-        announce_url_to_folder_name = self.organize_service.get_announce_urls_by_folder_name()
-        overridden_announce_url_to_folder_name = self._override_folder_names(announce_url_to_folder_name, overrides)
-        announce_urls_by_torrent_id = self.organize_service.get_announce_urls_by_torrent_id()
+        announce_url_to_folder_name = (
+            self.organize_service.get_announce_urls_by_folder_name()
+        )
+        overridden_announce_url_to_folder_name = self._override_folder_names(
+            announce_url_to_folder_name, overrides
+        )
+        announce_urls_by_torrent_id = (
+            self.organize_service.get_announce_urls_by_torrent_id()
+        )
         actions = self._make_actions(
             overridden_announce_url_to_folder_name, announce_urls_by_torrent_id
         )

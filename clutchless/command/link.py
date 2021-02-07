@@ -81,7 +81,9 @@ class LinkCommand(Command):
                 error.append(LinkFailure(torrent_data, str(e)))
         return success, error
 
-    def _separate(self, results: Iterable[TorrentData]) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
+    def _separate(
+        self, results: Iterable[TorrentData]
+    ) -> Tuple[Set[TorrentData], Set[MetainfoFile]]:
         found = {data for data in results if data.location is not None}
         rest = {data.metainfo_file for data in results if data.location is None}
         return found, rest

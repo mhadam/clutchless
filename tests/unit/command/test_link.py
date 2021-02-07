@@ -74,12 +74,18 @@ def test_link_run_failure_output(mocker: MockerFixture, capsys):
     output.display()
 
     result = capsys.readouterr().out
-    assert result == "\n".join([
-        "Couldn't find the data for the following torrents:",
-        "some_name",
-        "Failed to link the following torrents:",
-        "some_name because: something",
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "Couldn't find the data for the following torrents:",
+                "some_name",
+                "Failed to link the following torrents:",
+                "some_name because: something",
+            ]
+        )
+        + "\n"
+    )
 
 
 def test_link_dry_run_failure_output(mocker: MockerFixture, capsys):
@@ -99,12 +105,18 @@ def test_link_dry_run_failure_output(mocker: MockerFixture, capsys):
     output.dry_run_display()
 
     result = capsys.readouterr().out
-    assert result == "\n".join([
-        "Found the following torrents:",
-        "some_name at .",
-        "Couldn't find data for the following torrents:",
-        "some_name"
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "Found the following torrents:",
+                "some_name at .",
+                "Couldn't find data for the following torrents:",
+                "some_name",
+            ]
+        )
+        + "\n"
+    )
 
 
 def test_link_run_success_output(mocker: MockerFixture, capsys):
@@ -121,10 +133,9 @@ def test_link_run_success_output(mocker: MockerFixture, capsys):
     output.display()
 
     result = capsys.readouterr().out
-    assert result == "\n".join([
-        "Linked the following torrents:",
-        "some_name at ."
-    ]) + "\n"
+    assert (
+        result == "\n".join(["Linked the following torrents:", "some_name at ."]) + "\n"
+    )
 
 
 def test_link_dry_run_success_output(mocker: MockerFixture, capsys):
@@ -141,13 +152,12 @@ def test_link_dry_run_success_output(mocker: MockerFixture, capsys):
     output.dry_run_display()
 
     result = capsys.readouterr().out
-    assert result == "\n".join([
-        "Found the following torrents:",
-        "some_name at ."
-    ]) + "\n"
+    assert (
+        result == "\n".join(["Found the following torrents:", "some_name at ."]) + "\n"
+    )
 
 
-def test_link_list_run(mocker:MockerFixture):
+def test_link_list_run(mocker: MockerFixture):
     metainfo_file = MetainfoFile({"info_hash": "meaningless", "name": "some_name"})
     link_service = mocker.Mock(spec=LinkService)
     link_service.get_incomplete_id_by_metainfo_file.return_value = {metainfo_file: 1}
@@ -168,10 +178,10 @@ def test_link_list_output(mocker: MockerFixture, capsys):
     output.display()
 
     result = capsys.readouterr().out
-    assert result == "\n".join([
-        "Found following missing data torrents:",
-        "some_name"
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(["Found following missing data torrents:", "some_name"]) + "\n"
+    )
 
 
 def test_link_list_empty_output(mocker: MockerFixture, capsys):

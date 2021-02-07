@@ -98,14 +98,20 @@ def test_rename_command_dry_run_output(capsys):
     output.dry_run_display()
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        "Found 1 clashing renames:",
-        "‣ some_name has dupes:",
-        "⁃ /some/file1 (selected)",
-        "⁃ /some/file2",
-        "Found 1 metainfo files with new names that already exist:",
-        "/some/file1 with new name some_name.arbitrary.torrent"
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "Found 1 clashing renames:",
+                "‣ some_name has dupes:",
+                "⁃ /some/file1 (selected)",
+                "⁃ /some/file2",
+                "Found 1 metainfo files with new names that already exist:",
+                "/some/file1 with new name some_name.arbitrary.torrent",
+            ]
+        )
+        + "\n"
+    )
 
 
 def test_rename_command_run_output(capsys):
@@ -130,13 +136,19 @@ def test_rename_command_run_output(capsys):
     output.display()
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        "Found 1 clashing renames:",
-        "‣ some_name has dupes:",
-        "⁃ /some/file1 (selected)",
-        "⁃ /some/file2",
-        "Renamed 1 metainfo files:",
-        "/some/file3 to unique.123.torrent",
-        "Found 1 metainfo files with new names that already exist:",
-        "/some/file1 with new name some_name.arbitrary.torrent"
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "Found 1 clashing renames:",
+                "‣ some_name has dupes:",
+                "⁃ /some/file1 (selected)",
+                "⁃ /some/file2",
+                "Renamed 1 metainfo files:",
+                "/some/file3 to unique.123.torrent",
+                "Found 1 metainfo files with new names that already exist:",
+                "/some/file1 with new name some_name.arbitrary.torrent",
+            ]
+        )
+        + "\n"
+    )

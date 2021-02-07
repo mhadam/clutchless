@@ -164,7 +164,8 @@ def test_add_run_display(mocker: MockerFixture, capsys):
     fs = mocker.Mock(spec=Filesystem)
     metainfo_paths = {Path("/", "test_path", str(n)) for n in range(2)}
     metainfo_files = {
-        MetainfoFile({"info_hash": path, "name": "some_name"}, path) for path in metainfo_paths
+        MetainfoFile({"info_hash": path, "name": "some_name"}, path)
+        for path in metainfo_paths
     }
     command = AddCommand(service, fs, metainfo_files)
     output: AddOutput = command.run()
@@ -172,14 +173,20 @@ def test_add_run_display(mocker: MockerFixture, capsys):
 
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        '2 torrents were added:',
-        'some_name',
-        'some_name',
-        '2 torrents were deleted:',
-        'some_name at /test_path/0',
-        'some_name at /test_path/1',
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "2 torrents were added:",
+                "some_name",
+                "some_name",
+                "2 torrents were deleted:",
+                "some_name at /test_path/0",
+                "some_name at /test_path/1",
+            ]
+        )
+        + "\n"
+    )
 
 
 def test_add_run_display_duplicated(mocker: MockerFixture, capsys):
@@ -188,7 +195,9 @@ def test_add_run_display_duplicated(mocker: MockerFixture, capsys):
     service = AddService(api)
     fs = mocker.Mock(spec=Filesystem)
     metainfo_path = Path("/", "test_path")
-    metainfo_file = MetainfoFile({"info_hash": "arbitrary", "name": "some_name"}, metainfo_path)
+    metainfo_file = MetainfoFile(
+        {"info_hash": "arbitrary", "name": "some_name"}, metainfo_path
+    )
 
     command = AddCommand(service, fs, {metainfo_file})
 
@@ -197,10 +206,16 @@ def test_add_run_display_duplicated(mocker: MockerFixture, capsys):
 
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        '1 torrents are duplicates:',
-        'some_name',
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "1 torrents are duplicates:",
+                "some_name",
+            ]
+        )
+        + "\n"
+    )
 
 
 def test_add_run_display_failed(mocker: MockerFixture, capsys):
@@ -209,7 +224,9 @@ def test_add_run_display_failed(mocker: MockerFixture, capsys):
     service = AddService(api)
     fs = mocker.Mock(spec=Filesystem)
     metainfo_path = Path("/", "test_path")
-    metainfo_file = MetainfoFile({"info_hash": "arbitrary", "name": "some_name"}, metainfo_path)
+    metainfo_file = MetainfoFile(
+        {"info_hash": "arbitrary", "name": "some_name"}, metainfo_path
+    )
     command = AddCommand(service, fs, {metainfo_file})
 
     output: AddOutput = command.run()
@@ -217,10 +234,16 @@ def test_add_run_display_failed(mocker: MockerFixture, capsys):
 
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        "1 torrents failed:",
-        "some_name because: unknown",
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "1 torrents failed:",
+                "some_name because: unknown",
+            ]
+        )
+        + "\n"
+    )
 
 
 def test_add_dry_run_display(mocker: MockerFixture, capsys):
@@ -230,7 +253,8 @@ def test_add_dry_run_display(mocker: MockerFixture, capsys):
     fs = mocker.Mock(spec=Filesystem)
     metainfo_paths = {Path("/", "test_path", str(n)) for n in range(2)}
     metainfo_files = {
-        MetainfoFile({"info_hash": path, "name": "some_name"}, path) for path in metainfo_paths
+        MetainfoFile({"info_hash": path, "name": "some_name"}, path)
+        for path in metainfo_paths
     }
     command = AddCommand(service, fs, metainfo_files)
     output: AddOutput = command.dry_run()
@@ -238,11 +262,17 @@ def test_add_dry_run_display(mocker: MockerFixture, capsys):
 
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        '2 torrents would be added and deleted:',
-        'some_name at /test_path/0',
-        'some_name at /test_path/1',
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "2 torrents would be added and deleted:",
+                "some_name at /test_path/0",
+                "some_name at /test_path/1",
+            ]
+        )
+        + "\n"
+    )
 
 
 def test_linking_add_run_display(mocker: MockerFixture, capsys):
@@ -272,24 +302,28 @@ def test_linking_add_run_display(mocker: MockerFixture, capsys):
         TorrentData(file_one, Path("/some/place")),
         TorrentData(file_two),
     }
-    command = LinkingAddCommand(
-        add_service, fs, torrent_data
-    )
+    command = LinkingAddCommand(add_service, fs, torrent_data)
 
     output: LinkingAddOutput = command.run()
     output.display()
 
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        'Linked 1 torrents:',
-        'meaningless at /some/place',
-        'Added 1 torrents:',
-        'meaningless',
-        '2 torrents were deleted:',
-        'meaningless at /test_path2',
-        'meaningless at /test_path'
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "Linked 1 torrents:",
+                "meaningless at /some/place",
+                "Added 1 torrents:",
+                "meaningless",
+                "2 torrents were deleted:",
+                "meaningless at /test_path2",
+                "meaningless at /test_path",
+            ]
+        )
+        + "\n"
+    )
 
 
 def test_linking_add_run_display_duplicated(mocker: MockerFixture, capsys):
@@ -319,10 +353,7 @@ def test_linking_add_run_display_duplicated(mocker: MockerFixture, capsys):
 
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        'There are 1 duplicates:',
-        'meaningless'
-    ]) + "\n"
+    assert result == "\n".join(["There are 1 duplicates:", "meaningless"]) + "\n"
 
 
 def test_linking_add_run_display_failed(mocker: MockerFixture, capsys):
@@ -354,10 +385,7 @@ def test_linking_add_run_display_failed(mocker: MockerFixture, capsys):
 
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        '1 failed:',
-        'meaningless because: unknown'
-    ]) + "\n"
+    assert result == "\n".join(["1 failed:", "meaningless because: unknown"]) + "\n"
 
 
 def test_linking_add_dry_run_display(mocker: MockerFixture, capsys):
@@ -376,22 +404,23 @@ def test_linking_add_dry_run_display(mocker: MockerFixture, capsys):
         },
         path,
     )
-    torrent_data = {
-        TorrentData(file, Path("/some/place")),
-        TorrentData(file)
-    }
-    command = LinkingAddCommand(
-        add_service, fs, torrent_data
-    )
+    torrent_data = {TorrentData(file, Path("/some/place")), TorrentData(file)}
+    command = LinkingAddCommand(add_service, fs, torrent_data)
 
     output: LinkingAddOutput = command.dry_run()
     output.dry_run_display()
 
     result = capsys.readouterr().out
 
-    assert result == "\n".join([
-        'Would add 1 torrents with data:',
-        'meaningless at /some/place',
-        'Would add 1 torrents without data:',
-        'meaningless',
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "Would add 1 torrents with data:",
+                "meaningless at /some/place",
+                "Would add 1 torrents without data:",
+                "meaningless",
+            ]
+        )
+        + "\n"
+    )

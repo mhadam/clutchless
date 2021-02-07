@@ -89,7 +89,7 @@ class ArchiveOutput(CommandOutput):
             if self.already_exists:
                 print(f"Found {len(self.already_exists)} duplicate metainfo files:")
                 for action in self.already_exists:
-                    print(f'{action.name}')
+                    print(f"{action.name}")
             copied_count = len(self.copied) + len(self.copy_failure)
             if copied_count > 0:
                 copied_local_error = {

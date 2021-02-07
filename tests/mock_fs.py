@@ -50,7 +50,9 @@ class MockFilesystem(Filesystem):
                 for directory in self.directories:
                     if path in directory.parent:
                         self.directories.remove(directory)
-                        self.directories.add(path.parent / name / directory.relative_to(path))
+                        self.directories.add(
+                            path.parent / name / directory.relative_to(path)
+                        )
                 if path in self.directories:
                     self.directories.remove(path)
                     self.directories.add(path.parent / name)

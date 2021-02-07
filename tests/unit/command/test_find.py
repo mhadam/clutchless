@@ -83,7 +83,7 @@ def test_find_run_output(capsys):
             ]
         },
     }
-    missing_metainfo_file = MetainfoFile(missing_properties, Path('/missing.torrent'))
+    missing_metainfo_file = MetainfoFile(missing_properties, Path("/missing.torrent"))
     fs = MockFilesystem({"data": {"test_name": {"file1", "file2"}}})
 
     locator = DefaultTorrentDataLocator(fs)
@@ -94,11 +94,17 @@ def test_find_run_output(capsys):
     output.display()
 
     result = capsys.readouterr().out
-    assert result == "\n".join([
-        "Starting search - press Ctrl+C to cancel",
-        "1/2 test_name found at /data",
-        "Found 1 torrents:",
-        "\x1b[32m✓ test_name at /data",
-        "Did not find 1 torrents:",
-        "\x1b[31m✗ another_name"
-    ]) + "\n"
+    assert (
+        result
+        == "\n".join(
+            [
+                "Starting search - press Ctrl+C to cancel",
+                "1/2 test_name found at /data",
+                "Found 1 torrents:",
+                "\x1b[32m✓ test_name at /data",
+                "Did not find 1 torrents:",
+                "\x1b[31m✗ another_name",
+            ]
+        )
+        + "\n"
+    )

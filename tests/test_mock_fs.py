@@ -67,9 +67,7 @@ def test_mock_fs_nested_complex_2():
 
 
 def test_mock_fs_top_level():
-    fs = MockFilesystem(
-        {"test"}
-    )
+    fs = MockFilesystem({"test"})
 
     assert fs.exists(Path("/test"))
 
