@@ -6,7 +6,7 @@ from pytest_mock import MockerFixture
 
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import SingleDirectoryFileLocator
-from clutchless.external.metainfo import MetainfoReader
+from clutchless.external.metainfo import MetainfoIO
 from clutchless.service.file import (
     collect_from_aggregate,
     collect_metainfo_paths,
@@ -106,7 +106,7 @@ def test_collect_metainfo_files_with_timeout(mocker: MockerFixture):
     )
 
     paths = {Path("/")}
-    reader = mocker.Mock(spec=MetainfoReader)
+    reader = mocker.Mock(spec=MetainfoIO)
 
     def from_path(path: Path):
         return MetainfoFile({"info_hash": str(path)})

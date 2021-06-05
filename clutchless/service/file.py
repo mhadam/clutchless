@@ -11,7 +11,7 @@ from clutchless.external.filesystem import (
     SingleDirectoryFileLocator,
     AggregateFileLocator,
 )
-from clutchless.external.metainfo import MetainfoReader
+from clutchless.external.metainfo import MetainfoIO
 
 logger = logging.getLogger(__name__)
 
@@ -146,13 +146,13 @@ def collect_metainfo_paths(
 
 
 def _get_metainfo_files(
-    reader: MetainfoReader, paths: Iterable[Path]
+    reader: MetainfoIO, paths: Iterable[Path]
 ) -> Iterable[MetainfoFile]:
     return (reader.from_path(path) for path in paths)
 
 
 def collect_metainfo_files(
-    reader: MetainfoReader, fs: Filesystem, raw_torrent_paths: Iterable[str]
+    reader: MetainfoIO, fs: Filesystem, raw_torrent_paths: Iterable[str]
 ) -> Iterable[MetainfoFile]:
     paths = collect_metainfo_paths(fs, raw_torrent_paths)
     return _get_metainfo_files(reader, paths)

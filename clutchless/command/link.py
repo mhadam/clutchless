@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from typing import Set, Mapping, MutableSequence, Tuple, Sequence, Iterable
 
@@ -5,6 +6,9 @@ from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.metainfo import TorrentData
 from clutchless.service.torrent import FindService, LinkService
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -64,7 +68,9 @@ class LinkCommand(Command):
     ):
         torrent_id = torrent_id_by_metainfo_file[torrent_data.metainfo_file]
         new_path = torrent_data.location
-        self.link_service.change_location(torrent_id, new_path)
+        self.link_service.change_location(
+            torrent_id, torrent_data.metainfo_file.path, new_path
+        )
 
     def handle_found(
         self,
@@ -133,6 +139,7 @@ class ListLinkCommand(Command):
         torrent_id_by_metainfo_file = (
             self.link_service.get_incomplete_id_by_metainfo_file()
         )
+        logger.debug(f"torrent_id_by_metainfo_file:{torrent_id_by_metainfo_file}")
         metainfo_files: Set[MetainfoFile] = set(torrent_id_by_metainfo_file.keys())
         return LinkListCommandResult(metainfo_files)
 

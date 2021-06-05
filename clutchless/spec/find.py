@@ -14,7 +14,7 @@ from typing import Mapping, Set
 
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem, FileLocator
-from clutchless.external.metainfo import MetainfoReader
+from clutchless.external.metainfo import MetainfoIO
 from clutchless.service.file import (
     get_valid_directories,
     collect_metainfo_paths,
@@ -26,7 +26,7 @@ class FindArgs:
     def __init__(
         self,
         args: Mapping,
-        reader: MetainfoReader,
+        reader: MetainfoIO,
         fs: Filesystem,
         locator: FileLocator,
     ):
@@ -41,8 +41,8 @@ class FindArgs:
 
     def get_torrent_files_paths(self) -> Set[Path]:
         raw_torrents_paths = set(self.args["<metainfo>"])
-        return collect_metainfo_paths(self.fs, raw_torrents_paths)
+        return set(collect_metainfo_paths(self.fs, raw_torrents_paths))
 
     def get_torrent_files(self) -> Set[MetainfoFile]:
         raw_torrents_paths = set(self.args["<metainfo>"])
-        return collect_metainfo_files(self.reader, self.fs, raw_torrents_paths)
+        return set(collect_metainfo_files(self.reader, self.fs, raw_torrents_paths))

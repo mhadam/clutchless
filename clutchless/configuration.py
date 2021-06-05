@@ -31,7 +31,7 @@ from clutchless.external.filesystem import (
     MultipleDirectoryFileLocator,
 )
 from clutchless.external.metainfo import (
-    MetainfoReader,
+    MetainfoIO,
     CustomTorrentDataLocator,
     DefaultTorrentDataReader,
     TorrentData,
@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 
 def rename_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
     fs: Filesystem = dependencies["fs"]
-    reader: MetainfoReader = dependencies["metainfo_reader"]
+    reader: MetainfoIO = dependencies["metainfo_reader"]
 
     from clutchless.spec import rename as rename_command
 
@@ -73,7 +73,7 @@ def rename_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactory
 
 def add_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryResult:
     client = dependencies["client"]
-    reader: MetainfoReader = dependencies["metainfo_reader"]
+    reader: MetainfoIO = dependencies["metainfo_reader"]
 
     # parse arguments
     from clutchless.spec import add as add_command
@@ -114,7 +114,7 @@ def link_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRe
     client = dependencies["client"]
     fs = dependencies["fs"]
 
-    data_service = LinkDataService(client)
+    data_service = LinkDataService(client, reader)
     link_service = LinkService(reader, data_service)
 
     # parse
@@ -124,7 +124,8 @@ def link_factory(argv: Sequence[str], dependencies: Mapping) -> CommandFactoryRe
 
     data_dirs: Set[Path] = get_valid_directories(fs, link_args.get("<data>"))
     file_locator = MultipleDirectoryFileLocator(data_dirs, fs)
-    data_locator = CustomTorrentDataLocator(file_locator, reader)
+    data_reader = DefaultTorrentDataReader(fs)
+    data_locator = CustomTorrentDataLocator(file_locator, data_reader)
     find_service = FindService(data_locator)
 
     if link_args.get("--list"):
@@ -227,7 +228,9 @@ def prune_folder_factory(
     prune_args = docopt(doc=prune_folder_command.__doc__, argv=argv)
     raw_folders: Sequence[str] = prune_args.get("<metainfo>")
 
-    metainfo_files: Set[MetainfoFile] = collect_metainfo_files(reader, fs, raw_folders)
+    metainfo_files: Set[MetainfoFile] = set(
+        collect_metainfo_files(reader, fs, raw_folders)
+    )
     return PruneFolderCommand(service, fs, metainfo_files), prune_args
 
 

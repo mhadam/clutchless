@@ -3,6 +3,7 @@ import logging
 import signal
 from asyncio import FIRST_COMPLETED
 from collections import OrderedDict
+from io import BytesIO
 from pathlib import Path
 from typing import (
     Set,
@@ -20,7 +21,7 @@ from urllib.parse import urlparse
 
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.metainfo import (
-    MetainfoReader,
+    MetainfoIO,
     TorrentData,
     TorrentDataLocator,
 )
@@ -165,8 +166,9 @@ class ExcludingFindService(FindService):
 
 
 class LinkDataService:
-    def __init__(self, api: TransmissionApi):
+    def __init__(self, api: TransmissionApi, metainfo_io: MetainfoIO):
         self.api = api
+        self.metainfo_io = metainfo_io
 
     def __query_incomplete_ids(self) -> Set[int]:
         id_result: QueryResult[Set[int]] = self.api.get_incomplete_ids()
@@ -186,6 +188,7 @@ class LinkDataService:
 
     def __get_metainfo_path_by_id(self) -> Mapping[int, Path]:
         incomplete_ids: Set[int] = self.__query_incomplete_ids()
+        logger.debug(f"incomplete ids:{incomplete_ids}")
         return self.__query_metainfo_file_by_id(incomplete_ids)
 
     def get_incomplete_metainfo_path_by_id(self) -> Mapping[int, Path]:
@@ -198,9 +201,44 @@ class LinkDataService:
         if not command_result.success:
             raise RuntimeError("failed to change torrent location")
 
+    def remove_by_id(self, torrent_id: int):
+        command_result: CommandResult = self.api.remove_torrent_keeping_data(torrent_id)
+        if not command_result.success:
+            raise RuntimeError(f"failed to remove torrent with id:{torrent_id}")
+
+    def get_metainfo_raw_value(self, path: Path) -> bytes:
+        return self.metainfo_io.get_bytes(path)
+
+    def restore_metainfo(self, value: bytes, path: Path):
+        self.metainfo_io.write_bytes(value, path)
+
+    def add_with_paths(self, metainfo_path: Path, data_path: Path):
+        result = self.api.add_torrent_with_files(metainfo_path, data_path)
+        if not result.success:
+            raise RuntimeError(
+                f"failed to add data files from:f{data_path} for metainfo file:f{metainfo_path}"
+            )
+
+    def get_hash_with_torrent_id(self, torrent_id: int) -> str:
+        result = self.api.get_torrent_hashes_by_id()
+        if not result.success:
+            raise RuntimeError(f"failed to retrieve torrent hashes by id")
+        return result.value[torrent_id]
+
+    def get_torrent_id_with_hash(self, torrent_hash: str) -> int:
+        result = self.api.get_torrent_ids_by_hash()
+        if not result.success:
+            raise RuntimeError(f"failed to retrieve torrent ids by hash")
+        return result.value[torrent_hash]
+
+    def trigger_verify(self, torrent_id: int):
+        result = self.api.verify(torrent_id)
+        if not result.success:
+            raise RuntimeError(f"failed to verify torrent")
+
 
 class LinkService:
-    def __init__(self, metainfo_reader: MetainfoReader, data_service: LinkDataService):
+    def __init__(self, metainfo_reader: MetainfoIO, data_service: LinkDataService):
         self.metainfo_reader = metainfo_reader
         self.data_service = data_service
 
@@ -211,12 +249,18 @@ class LinkService:
             for (torrent_id, path) in metainfo_path_by_id.items()
         }
 
-    def change_location(self, torrent_id: int, new_path: Path):
-        self.data_service.change_location(torrent_id, new_path)
+    def change_location(self, torrent_id: int, metainfo_path: Path, new_path: Path):
+        raw_value = self.data_service.get_metainfo_raw_value(metainfo_path)
+        torrent_hash = self.data_service.get_hash_with_torrent_id(torrent_id)
+        self.data_service.remove_by_id(torrent_id)
+        self.data_service.restore_metainfo(raw_value, metainfo_path)
+        self.data_service.add_with_paths(metainfo_path, new_path)
+        new_id = self.data_service.get_torrent_id_with_hash(torrent_hash)
+        self.data_service.trigger_verify(new_id)
 
 
 class DryRunLinkService(LinkService):
-    def change_location(self, torrent_id: int, new_path: Path):
+    def change_location(self, torrent_id: int, metainfo_path: Path, new_path: Path):
         pass
 
 
@@ -270,7 +314,7 @@ class OrganizeService:
     shortened and camelcase hostname -> announce urls(sorted too)
     """
 
-    def __init__(self, client: TransmissionApi, metainfo_reader: MetainfoReader):
+    def __init__(self, client: TransmissionApi, metainfo_reader: MetainfoIO):
         self.client = client
         self.metainfo_reader = metainfo_reader
 

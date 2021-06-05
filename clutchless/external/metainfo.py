@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import Protocol, Optional
 
@@ -16,12 +17,18 @@ from clutchless.external.filesystem import (
 logger = logging.getLogger(__name__)
 
 
-class MetainfoReader(Protocol):
+class MetainfoIO(Protocol):
     def from_path(self, path: Path) -> MetainfoFile:
         raise NotImplementedError
 
+    def get_bytes(self, path: Path) -> bytes:
+        raise NotImplementedError
 
-class DefaultMetainfoReader(MetainfoReader):
+    def write_bytes(self, value: bytes, path: Path):
+        raise NotImplementedError
+
+
+class DefaultMetainfoIO(MetainfoIO):
     def from_path(self, path: Path) -> MetainfoFile:
         external_torrent = ExternalTorrent.from_file(str(path))
         properties = {
@@ -29,6 +36,14 @@ class DefaultMetainfoReader(MetainfoReader):
         }
         properties["info"] = external_torrent._struct.get("info") or dict()
         return MetainfoFile(properties, path)
+
+    def get_bytes(self, path: Path) -> bytes:
+        with open(path, "rb") as f:
+            return bytes(f.read())
+
+    def write_bytes(self, value: bytes, path: Path):
+        with open(path, "wb") as f:
+            f.write(value)
 
 
 class TorrentDataReader(Protocol):

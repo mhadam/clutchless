@@ -9,6 +9,7 @@ from clutch.schema.user.response.torrent.accessor import (
     TorrentAccessorResponse,
     TorrentAccessorObject,
 )
+from clutch.schema.user.method.torrent.action import TorrentActionMethod
 from clutch.schema.user.response.torrent.add import TorrentAdd
 
 from clutchless.domain.torrent import MetainfoFile
@@ -112,6 +113,9 @@ class TransmissionApi(Protocol):
     def remove_torrent_keeping_data(self, torrent_id) -> CommandResult:
         raise NotImplementedError
 
+    def verify(self, torrent_id: int) -> CommandResult:
+        raise NotImplementedError
+
 
 class ClutchApi(TransmissionApi):
     def __init__(self, client: Client):
@@ -201,14 +205,30 @@ class ClutchApi(TransmissionApi):
 
     def get_incomplete_ids(self) -> QueryResult[Set[int]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields={"id", "percent_done"}
+            fields={
+                "id",
+                "percent_done",
+                "error",
+                "error_string",
+                "is_finished",
+                "left_until_done",
+            }
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
         torrents: Sequence[TorrentAccessorObject] = cast(
             Sequence[TorrentAccessorObject], arguments.torrents
         )
+
+        def is_missing_data_error(error: int, error_string: str):
+            return error == 3 and error_string.startswith("No data found!")
+
         return QueryResult(
-            value={torrent.id for torrent in torrents if torrent.percent_done == 0.0}
+            value={
+                torrent.id
+                for torrent in torrents
+                if torrent.percent_done == 0.0
+                or is_missing_data_error(torrent.error, torrent.error_string)
+            }
         )
 
     def get_metainfo_file_path(self, torrent_id: int) -> QueryResult[Path]:
@@ -227,7 +247,7 @@ class ClutchApi(TransmissionApi):
         self, ids: Set[int]
     ) -> QueryResult[Mapping[int, Path]]:
         response: Response[TorrentAccessorResponse] = self.client.torrent.accessor(
-            fields={"torrent_file", "percent_done"}
+            fields={"id", "torrent_file", "percent_done"}, ids=ids
         )
         arguments = cast(TorrentAccessorResponse, response.arguments)
         torrents: Sequence[TorrentAccessorObject] = cast(
@@ -384,8 +404,19 @@ class ClutchApi(TransmissionApi):
             return CommandResult(error=response.result, success=False)
         return CommandResult()
 
+    def verify(self, torrent_id: int) -> CommandResult:
+        response: Response[TorrentAccessorResponse] = self.client.torrent.action(
+            TorrentActionMethod.VERIFY, torrent_id
+        )
+        if response.result != "success":
+            return CommandResult(error=response.result, success=False)
+        return CommandResult()
+
 
 class DryRunClient(TransmissionApi):
+    def verify(self, torrent_id: int) -> CommandResult:
+        pass
+
     def get_errors_by_id(
         self, ids: Set[int]
     ) -> QueryResult[Mapping[int, Tuple[int, str]]]:
