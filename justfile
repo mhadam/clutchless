@@ -9,7 +9,7 @@ clean-docker:
 	sudo docker volume torrent-data
 
 install:
-	poetry build && ls -t dist/*.whl | head -n1 | xargs pip install --upgrade --force-reinstall
+	poetry build && ls -t dist/*.whl | head -n1 | xargs pip install --user --upgrade --force-reinstall
 
 image:
 	docker build -f docker/clutchless.df -t clutchless .
