@@ -299,7 +299,7 @@ python-versions = "*"
 
 [[package]]
 name = "transmission-clutch"
-version = "6.0.0"
+version = "6.0.1"
 description = "An RPC client library for the Transmission BitTorrent client"
 category = "main"
 optional = false
@@ -522,8 +522,8 @@ torrentool = [
     {file = "torrentool-1.1.1.tar.gz", hash = "sha256:2d892e8a02749fa9ea57fb2dcf69c1794305c069e973f4726a0a51dc66283e9c"},
 ]
 transmission-clutch = [
-    {file = "transmission-clutch-6.0.0.tar.gz", hash = "sha256:f5dfd21e57b56bb773885615fbf3bf5c27f0b1b76ecf5d67b6f330bd6ed99dd9"},
-    {file = "transmission_clutch-6.0.0-py3-none-any.whl", hash = "sha256:c5234df7d00be558d90c58dc3a416bdbb5c460989ce8d52917d55324ddab63f5"},
+    {file = "transmission-clutch-6.0.1.tar.gz", hash = "sha256:4a27d797ecf49a819781ee8c9f4f107c29a2ecaee494b7ea7139b5878109f744"},
+    {file = "transmission_clutch-6.0.1-py3-none-any.whl", hash = "sha256:6d066ab77d25743b6e63f2344cac0fefc957cb869d322d3166fcd92098a9d5b0"},
 ]
 typing-extensions = [
     {file = "typing_extensions-3.10.0.0-py2-none-any.whl", hash = "sha256:0ac0f89795dd19de6b97debb0c6af1c70987fd80a2d62d1958f7e56fcc31b497"},
