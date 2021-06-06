@@ -1,4 +1,3 @@
-import itertools
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -7,6 +6,8 @@ from typing import Iterable, Mapping, MutableMapping, Set, Tuple
 from clutchless.command.command import Command, CommandOutput
 from clutchless.domain.torrent import MetainfoFile
 from clutchless.external.filesystem import Filesystem
+
+from pathvalidate import sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,8 @@ class RenameOutput(CommandOutput):
 
 
 def get_new_name(file: MetainfoFile) -> str:
-    return file.name + "." + file.info_hash[:16] + ".torrent"
+    filename = file.name + "." + file.info_hash[:16] + ".torrent"
+    return sanitize_filename(filename)
 
 
 def get_hash(s: Set[MetainfoFile]):
