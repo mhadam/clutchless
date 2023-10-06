@@ -29,11 +29,6 @@ Other links
 
 * `Developer documentation`_
 
-Support
-=======
-
-btc: bc1q9spjh7nuqatz4pa7dscd0357p3ql588tla6af7
-
 Quick start
 ===========
 
